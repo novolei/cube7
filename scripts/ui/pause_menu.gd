@@ -19,11 +19,11 @@ func _ready() -> void:
 	_root.visible = false
 	add_child(_root)
 	var dim := ColorRect.new()
-	dim.color = Color(0.02, 0.03, 0.07, 0.62)
+	dim.color = Color(0.14, 0.18, 0.18, 0.44)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(dim)
 	_panel = PanelContainer.new()
-	_panel.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, UIKit.LINE, 20, 32))
+	_panel.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, UIKit.LINE, 6, 32))
 	UIKit.place(_panel, Vector4(0, 0.5, 0, 0.5), Vector4(90, -330, 560, 330))
 	_root.add_child(_panel)
 	_list = VBoxContainer.new()
@@ -51,7 +51,7 @@ func _ready() -> void:
 		Music.stop()
 		Flow.goto_title())
 	_settings = SettingsPanel.new()
-	UIKit.place(_settings, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-350, -340, 350, 340))
+	UIKit.place(_settings, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-350, -280, 350, 280))
 	_settings.visible = false
 	_settings.closed.connect(func() -> void:
 		_settings.visible = false
@@ -123,7 +123,7 @@ func _show_controls() -> void:
 	if _controls:
 		_controls.queue_free()
 	_controls = PanelContainer.new()
-	_controls.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, UIKit.LINE, 20, 30))
+	_controls.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, UIKit.LINE, 6, 30))
 	UIKit.place(_controls, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-330, -300, 330, 300))
 	_root.add_child(_controls)
 	var v := VBoxContainer.new()

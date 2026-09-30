@@ -10,6 +10,8 @@ static func _sky(level: Node3D, center: Vector3, sea_y: float) -> Vista:
 	var sky := SkyWorld.new()
 	sky.center = center
 	sky.sea_height = sea_y
+	if level is AreaGreenhouse and (level as AreaGreenhouse).backdrop:
+		sky.cloud_count = 0
 	level.add_child(sky)
 	var v := Vista.new()
 	v.name = "Vista"

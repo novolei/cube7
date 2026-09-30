@@ -65,7 +65,7 @@ func _ready() -> void:
 		mm.set_instance_custom_data(i, Color(_phase[i], 0, 0, 0))
 	_t = rng.randf() * 100.0
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	_t += delta
 	var mm := _mm.multimesh
 	for i in count:

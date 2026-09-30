@@ -12,9 +12,9 @@ varying float v_type;
 varying flat float v_code;
 
 uniform vec3 dirt_color : source_color = vec3(0.925, 0.604, 0.455);
-uniform float bevel_width = 0.16;
-uniform float bevel_dark = 0.16;
-uniform float round_strength = 0.9;
+uniform float bevel_width = 0.08;
+uniform float bevel_dark = 0.08;
+uniform float round_strength = 0.3;
 
 float hash13(vec3 p) {
 	p = fract(p * 0.1031);
@@ -113,10 +113,13 @@ vec3 voxel_albedo(vec3 base, float light, vec2 uv) {
 	//   打不坏：更暗一点、边缘更硬朗
 	float ei = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
 	bool foliage = abs(v_type - 22.0) < 0.5 || v_type > 33.5 && v_type < 35.5 || abs(v_type - 43.0) < 0.5;
+	bool terrain = v_type > 1.5 && v_type < 4.5 || v_type > 23.5 && v_type < 27.5 || v_type > 30.5 && v_type < 33.5;
 	if (foliage) {
 		// 树叶：一簇一簇的明暗，不画箱板
 		col *= 0.82 + 0.3 * vnoise(v_wpos * 3.3) + 0.08 * n3;
 		col = mix(col, col * vec3(1.15, 1.2, 0.8), smoothstep(0.3, 0.9, v_wnorm.y) * 0.35);
+	} else if (terrain) {
+		// 自然地表保持连续色块；人工箱体才需要可破坏的亮边标记。
 	} else if (cat > 0.5 && cat < 1.5) {
 		// 可撞碎：按 0.5 米的格在世界空间画“箱板”——四周一圈亮边框 + 中间木纹横条，一看就是箱子/可拆的构件
 		vec3 fu;

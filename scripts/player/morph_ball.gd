@@ -961,11 +961,11 @@ func _ring(color: Color, parent: Node3D, r := 0.49) -> MeshInstance3D:
 	var t := TorusMesh.new()
 	t.inner_radius = r - 0.035
 	t.outer_radius = r + 0.035
-	return _mesh(t, _mat(color, 3.0), parent)
+	return _mesh(t, _mat(color, 1.8), parent)
 
 func _build_visuals() -> void:
 	# 可爱的“小机器人”配色：珍珠白外壳 + 形态色的发光饰条 + 深色屏幕脸（脸在 _build_face 里）
-	var pearl := Color("f3f5ff")
+	var pearl := Color("f6f2e6")
 	for i in FORMS.size():
 		var root := Node3D.new()
 		root.name = FORMS[i].id
@@ -1058,13 +1058,10 @@ func _build_visuals() -> void:
 func _shell_mat(c: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
-	m.roughness = 0.28
+	m.roughness = 0.72
 	m.metallic = 0.05
-	m.clearcoat_enabled = true
-	m.clearcoat = 0.6
-	m.clearcoat_roughness = 0.2
 	m.rim_enabled = true
-	m.rim = 0.35
+	m.rim = 0.18
 	m.rim_tint = 0.5
 	return m
 

@@ -5,7 +5,7 @@ signal changed
 
 var values := {
 	"master": 0.9, "music": 0.8, "sfx": 0.9, "ui": 0.8,
-	"cam_sens": 1.0, "invert_y": false, "shake": true, "subtitles_speed": 1.0,
+	"cam_sens": 1.0, "invert_y": false, "shake": true, "reduce_motion": false, "subtitles_speed": 1.0,
 	"cam_dist": 1.0, "rumble": 0.8, "aim_assist": true, "fog": true,
 }
 

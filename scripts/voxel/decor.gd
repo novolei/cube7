@@ -10,7 +10,7 @@ var _pending := {}      # 名称 -> Array[Transform3D]
 var _pending_cells := {}
 
 const KINDS := {
-	"grass": {"tip": Color("b5d86a"), "base": Color("4f8f3c")},
+	"grass": {"tip": Color("c2bb68"), "base": Color("536d39")},
 	"flower_red": {"tip": Color("ff7aa8"), "base": Color("4f8f3c")},
 	"flower_yellow": {"tip": Color("ffd769"), "base": Color("4f8f3c")},
 	"flower_white": {"tip": Color("fdf6ff"), "base": Color("4f8f3c")},

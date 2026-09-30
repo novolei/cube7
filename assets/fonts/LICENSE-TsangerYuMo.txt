@@ -1,0 +1,15 @@
+Tsanger YuMo / 仓耳与墨 (W01, W02, W03)
+Copyright: 北京仓耳文字技术有限公司
+
+The font files in this directory were supplied by the project owner. They are
+redistributed under the foundry's free font license, which permits use,
+embedding, modification and redistribution, including commercial use. The
+fonts or their components may not be sold separately, and original or modified
+copies must remain under the same license. The full and controlling Chinese
+license text is published by the foundry here:
+https://www.tsanger.cn/107.html
+
+Font product pages:
+https://www.tsanger.cn/product/189
+https://www.tsanger.cn/product/190
+https://www.tsanger.cn/product/191

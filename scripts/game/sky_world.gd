@@ -5,7 +5,7 @@ extends Node3D
 
 @export var sea_height := -30.0
 @export var center := Vector3(32, 0, 26)
-@export var cloud_count := 22
+@export var cloud_count := 8
 @export var bird_flocks := 3
 @export var show_sea := true      ## 第五章用自己的锈海，不要云海
 
@@ -32,14 +32,11 @@ func _ready() -> void:
 	rng.seed = 7
 	var mat := StandardMaterial3D.new()
 	var p := Atmosphere.current if not Atmosphere.current.is_empty() else Atmosphere.preset("greenhouse")
-	mat.albedo_color = p.cloud_lit
+	mat.albedo_color = p.cloud_lit.lerp(p.cloud_shade, 0.18)
 	mat.roughness = 1.0
 	mat.rim_enabled = true
-	mat.rim = 0.6
+	mat.rim = 0.25
 	mat.rim_tint = 0.3
-	mat.emission_enabled = true
-	mat.emission = p.cloud_shade
-	mat.emission_energy_multiplier = 0.35
 	var sph := SphereMesh.new()
 	sph.radius = 1.0
 	sph.height = 1.6
@@ -48,7 +45,7 @@ func _ready() -> void:
 	for i in cloud_count:
 		var puff := Node3D.new()
 		var ang := rng.randf() * TAU
-		var dist := rng.randf_range(90.0, 320.0)
+		var dist := rng.randf_range(130.0, 320.0)
 		var low := rng.randf() < 0.55
 		var y := sea_height + rng.randf_range(0.0, 6.0) if low else rng.randf_range(10.0, 60.0)
 		puff.position = center + Vector3(cos(ang) * dist, y, sin(ang) * dist)
@@ -57,7 +54,7 @@ func _ready() -> void:
 		for k in n:
 			var mi := MeshInstance3D.new()
 			mi.mesh = sph
-			var r := rng.randf_range(3.5, 7.5) * big
+			var r := rng.randf_range(3.5, 7.5) * big * 0.8
 			mi.scale = Vector3(r, r, r)
 			mi.material_override = mat
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

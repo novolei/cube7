@@ -23,14 +23,15 @@ var _st_focus: StyleBoxFlat
 var _hold := 0.0
 var _hold_dir := 0
 var _repeat := 0.0
+var _dragging := false
 
 func _ready() -> void:
 	focus_mode = Control.FOCUS_ALL
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	custom_minimum_size = Vector2(0, 42)
-	_st_normal = UIKit.panel(Color(1, 1, 1, 0.04), Color(1, 1, 1, 0.0), 12, 10, 0)
-	_st_focus = UIKit.panel(Color(UIKit.ACCENT, 0.18), UIKit.ACCENT, 12, 10, 3)
+	_st_normal = UIKit.panel(Color(1, 1, 1, 0.04), Color.TRANSPARENT, 4, 10, 0)
+	_st_focus = UIKit.panel(Color(UIKit.ACCENT2, 0.12), UIKit.ACCENT2, 4, 10, 1)
 	_st_normal.shadow_size = 0
 	add_theme_stylebox_override("panel", _st_normal)
 	var h := HBoxContainer.new()
@@ -50,13 +51,13 @@ func _ready() -> void:
 		_bar_bg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		_bar_bg.custom_minimum_size = Vector2(0, 14)
 		_bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var bgs := UIKit.panel(Color(1, 1, 1, 0.1), Color(0, 0, 0, 0), 7, 0)
+		var bgs := UIKit.panel(Color(UIKit.ACCENT, 0.16), Color.TRANSPARENT, 4, 0)
 		bgs.shadow_size = 0
 		_bar_bg.add_theme_stylebox_override("panel", bgs)
 		h.add_child(_bar_bg)
 		_bar_fill = Panel.new()
 		_bar_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var fs := UIKit.panel(UIKit.ACCENT, Color(0, 0, 0, 0), 7, 0)
+		var fs := UIKit.panel(UIKit.ACCENT, Color.TRANSPARENT, 4, 0)
 		fs.shadow_size = 0
 		_bar_fill.add_theme_stylebox_override("panel", fs)
 		_bar_bg.add_child(_bar_fill)
@@ -77,7 +78,6 @@ func _ready() -> void:
 		add_theme_stylebox_override("panel", _st_focus)
 		Sfx.play("ui_move", Vector3.INF, -12.0, 0.0))
 	focus_exited.connect(func() -> void: add_theme_stylebox_override("panel", _st_normal))
-	mouse_entered.connect(func() -> void: grab_focus())
 	resized.connect(refresh)
 	if _bar_bg:
 		_bar_bg.resized.connect(refresh)
@@ -144,15 +144,20 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 			return
 	# 鼠标：点开关 / 在数值条上点、拖
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if not event.pressed:
+			_dragging = false
+			return
+		grab_focus()
 		if is_button:
 			activated.emit()
 		elif step == 0.0:
 			_toggle()
-		else:
+		elif _bar_bg.get_global_rect().has_point(get_global_rect().position + event.position):
+			_dragging = true
 			_mouse_set(event.position)
 		accept_event()
-	elif event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_LEFT) and step > 0.0:
+	elif event is InputEventMouseMotion and _dragging and step > 0.0:
 		_mouse_set(event.position)
 
 func _mouse_set(local: Vector2) -> void:

@@ -11,7 +11,7 @@ var _list: VBoxContainer
 func _ready() -> void:
 	theme = UIKit.theme()
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, UIKit.LINE, 18, 28))
+	add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, UIKit.LINE, 6, 28))
 	custom_minimum_size = Vector2(760, 0)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
@@ -22,7 +22,7 @@ func _ready() -> void:
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(sp)
 	head.add_child(UIIcon.make("coin", UIKit.ACCENT2, 28))
-	_coins = UIKit.label("0", 28, Color.WHITE, true)
+	_coins = UIKit.label("0", 28, UIKit.TEXT, true)
 	head.add_child(_coins)
 	v.add_child(head)
 	v.add_child(UIKit.label("金币可以在这里换成永久的升级，跨章节保留。", 17, UIKit.DIM))
@@ -52,9 +52,9 @@ func _make_row(u: Dictionary) -> PanelContainer:
 	var pc := PanelContainer.new()
 	pc.focus_mode = Control.FOCUS_ALL
 	pc.custom_minimum_size = Vector2(0, 58)
-	var st_n := UIKit.panel(Color(1, 1, 1, 0.04), Color(0, 0, 0, 0), 12, 10, 0)
+	var st_n := UIKit.panel(Color(1, 1, 1, 0.04), Color.TRANSPARENT, 4, 10, 0)
 	st_n.shadow_size = 0
-	var st_f := UIKit.panel(Color(UIKit.ACCENT, 0.18), UIKit.ACCENT, 12, 10, 3)
+	var st_f := UIKit.panel(Color(UIKit.ACCENT2, 0.12), UIKit.ACCENT2, 4, 10, 1)
 	pc.add_theme_stylebox_override("panel", st_n)
 	pc.focus_entered.connect(func() -> void:
 		pc.add_theme_stylebox_override("panel", st_f)

@@ -6,6 +6,6 @@ void fragment() {
 	if (occluder_cut(v_wpos, CAMERA_POSITION_WORLD, FRAGCOORD.xy)) discard;
 	ALBEDO = voxel_albedo(COLOR.rgb, COLOR.a, UV);
 	NORMAL = normalize((VIEW_MATRIX * vec4(voxel_round_normal(UV), 0.0)).xyz);
-	ROUGHNESS = 0.7;
-	SPECULAR = 0.25;
+	ROUGHNESS = 0.92;
+	SPECULAR = 0.08;
 }

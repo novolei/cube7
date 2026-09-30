@@ -54,7 +54,7 @@ func _ready() -> void:
 	GameState.level_cleared.connect(_show_clear)
 	_build_combo()
 	GameState.combo_changed.connect(_on_combo)
-	_challenge = UIKit.outline(UIKit.label("", 30, UIKit.ACCENT, true), 10, Color("2a2c6b"))
+	_challenge = UIKit.outline(UIKit.label("", 28, UIKit.ACCENT, true), 5)
 	UIKit.place(_challenge, Vector4(0.5, 0, 0.5, 0), Vector4(-220, 26, 220, 70))
 	_challenge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_challenge.visible = false
@@ -99,10 +99,10 @@ func _build_combo() -> void:
 	_combo_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_combo_box.modulate.a = 0.0
 	_root.add_child(_combo_box)
-	_combo_word = UIKit.outline(UIKit.label("连拆", 22, UIKit.ACCENT2, true), 8, Color("2a2c6b"))
+	_combo_word = UIKit.outline(UIKit.label("连拆", 21, UIKit.ACCENT2, true), 4)
 	_combo_word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_combo_box.add_child(_combo_word)
-	_combo_num = UIKit.outline(UIKit.label("×0", 54, Color.WHITE, true), 12, Color("2a2c6b"))
+	_combo_num = UIKit.outline(UIKit.label("×0", 48, UIKit.TEXT, true), 4)
 	_combo_num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_combo_box.add_child(_combo_num)
 
@@ -112,7 +112,7 @@ func _on_combo(n: int) -> void:
 	_combo_box.modulate.a = 1.0
 	_combo_num.text = "×%d" % n
 	var hot := clampf(n / 40.0, 0.0, 1.0)
-	_combo_num.add_theme_color_override("font_color", Color.WHITE.lerp(Color("ff8a5c"), hot))
+	_combo_num.add_theme_color_override("font_color", UIKit.TEXT.lerp(UIKit.ACCENT2, hot))
 	_combo_num.pivot_offset = _combo_num.size * 0.5
 	_combo_num.scale = Vector2.ONE * (1.35 + hot * 0.3)
 	create_tween().tween_property(_combo_num, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -121,13 +121,13 @@ func _on_combo(n: int) -> void:
 func _on_combo_end(n: int, bonus: int) -> void:
 	if n < 3:
 		return
-	var word := "不错！"
+	var word := "连拆完成"
 	if n >= 60:
-		word = "拆迁大师！！"
+		word = "完美连锁"
 	elif n >= 30:
-		word = "太爽了！"
+		word = "连续突破"
 	elif n >= 15:
-		word = "漂亮！"
+		word = "精彩连拆"
 	_combo_word.text = word + ("  +%d 金币" % bonus if bonus > 0 else "")
 	if bonus > 0:
 		Sfx.play("success", Vector3.INF, -8.0, 0.0)
@@ -144,11 +144,11 @@ func _show_clear() -> void:
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var dim := ColorRect.new()
-	dim.color = Color(0.01, 0.02, 0.05, 0.6)
+	dim.color = Color(0.13, 0.17, 0.17, 0.42)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(dim)
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, UIKit.ACCENT2, 20, 36, 2))
+	p.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, UIKit.ACCENT2, 6, 36, 1))
 	UIKit.place(p, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-380, -240, 380, 240))
 	_root.add_child(p)
 	var v := VBoxContainer.new()
@@ -164,8 +164,8 @@ func _show_clear() -> void:
 	SaveGame.write()
 	var rows := [
 		["coin", UIKit.ACCENT2, "金币", str(GameState.coins)],
-		["pupu", Color("7dffc8"), "救出噗噗", "%d / %d" % [GameState.seeds, GameState.seeds_total]],
-		["fragment", Color("c89bff"), "记忆碎片", "%d / %d" % [GameState.fragments, GameState.fragments_total]],
+		["pupu", UIKit.GOOD, "救出噗噗", "%d / %d" % [GameState.seeds, GameState.seeds_total]],
+		["fragment", UIKit.ACCENT2, "记忆碎片", "%d / %d" % [GameState.fragments, GameState.fragments_total]],
 		["save", UIKit.ACCENT, "游戏时间", SaveGame.format_time(float(SaveGame.data.get("play_time", 0.0)))],
 	]
 	for r in rows:
@@ -226,7 +226,7 @@ func _show_clear() -> void:
 
 func _build_stats() -> void:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG, UIKit.LINE, 16, 14))
+	p.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG, UIKit.LINE, 6, 14))
 	UIKit.place(p, Vector4(0, 0, 0, 0), Vector4(24, 22, 340, 22))
 	_root.add_child(p)
 	var v := VBoxContainer.new()
@@ -235,11 +235,11 @@ func _build_stats() -> void:
 	var coin_row := HBoxContainer.new()
 	coin_row.add_theme_constant_override("separation", 10)
 	coin_row.add_child(UIIcon.make("coin", UIKit.ACCENT2, 30))
-	_coins = UIKit.label("0", 30, Color.WHITE, true)
+	_coins = UIKit.label("0", 28, UIKit.TEXT, true)
 	coin_row.add_child(_coins)
 	coin_row.add_child(UIKit.make_spacer(10))
-	coin_row.add_child(UIIcon.make("matter", Color("7de3ff"), 26))
-	_matter = UIKit.label("0", 26, Color("c8f4ff"), true)
+	coin_row.add_child(UIIcon.make("matter", UIKit.ACCENT, 26))
+	_matter = UIKit.label("0", 26, UIKit.TEXT, true)
 	coin_row.add_child(_matter)
 	v.add_child(coin_row)
 	var e_row := HBoxContainer.new()
@@ -250,7 +250,7 @@ func _build_stats() -> void:
 	_energy_bar.max_value = GameState.energy_per_shield
 	_energy_bar.custom_minimum_size = Vector2(150, 10)
 	_energy_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var bg := UIKit.panel(Color(1, 1, 1, 0.1), Color(0, 0, 0, 0), 5, 0)
+	var bg := UIKit.panel(Color(UIKit.ACCENT, 0.16), Color.TRANSPARENT, 5, 0)
 	var fg := UIKit.panel(UIKit.ACCENT, Color(0, 0, 0, 0), 5, 0)
 	bg.shadow_size = 0
 	fg.shadow_size = 0
@@ -262,12 +262,12 @@ func _build_stats() -> void:
 	v.add_child(e_row)
 	_frag_row = HBoxContainer.new()
 	_frag_row.add_theme_constant_override("separation", 10)
-	_frag_row.add_child(UIIcon.make("fragment", Color("c9a6ff"), 22))
-	_frag = UIKit.label("0 / 3", 20, Color("d9c6ff"), true)
+	_frag_row.add_child(UIIcon.make("fragment", UIKit.ACCENT2, 22))
+	_frag = UIKit.label("0 / 3", 19, UIKit.TEXT, true)
 	_frag_row.add_child(_frag)
 	_frag_row.add_child(UIKit.make_spacer(8))
-	_frag_row.add_child(UIIcon.make("pupu", Color("7dffc8"), 22))
-	_seeds = UIKit.label("0 / 3", 20, Color("b8ffe2"), true)
+	_frag_row.add_child(UIIcon.make("pupu", UIKit.GOOD, 22))
+	_seeds = UIKit.label("0 / 3", 19, UIKit.TEXT, true)
 	_frag_row.add_child(_seeds)
 	v.add_child(_frag_row)
 
@@ -286,8 +286,8 @@ func _rebuild_shields() -> void:
 
 func _build_objective() -> void:
 	_obj_card = PanelContainer.new()
-	var st := UIKit.panel(UIKit.BG, UIKit.ACCENT2, 16, 16, 0)
-	st.border_width_left = 4
+	var st := UIKit.panel(UIKit.BG, UIKit.ACCENT2, 6, 16, 0)
+	st.border_width_left = 2
 	_obj_card.add_theme_stylebox_override("panel", st)
 	UIKit.place(_obj_card, Vector4(1, 0, 1, 0), Vector4(-470, 22, -24, 22))
 	_obj_card.visible = false
@@ -306,7 +306,7 @@ func _build_objective() -> void:
 
 func _build_nova() -> void:
 	_nova = PanelContainer.new()
-	_nova.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, Color(0.31, 0.82, 1.0, 0.45), 18, 16, 2))
+	_nova.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, Color(UIKit.ACCENT, 0.64), 6, 16, 1))
 	UIKit.place(_nova, Vector4(0.5, 1, 0.5, 1), Vector4(-400, -196, 400, -196))
 	_nova.visible = false
 	_root.add_child(_nova)
@@ -340,14 +340,14 @@ func _build_forms() -> void:
 	UIKit.place(v, Vector4(0, 1, 0, 1), Vector4(28, -150, 520, -28))
 	v.alignment = BoxContainer.ALIGNMENT_END
 	_root.add_child(v)
-	_form_name = UIKit.outline(UIKit.label("", 22, Color.WHITE, true), 8)
+	_form_name = UIKit.outline(UIKit.label("", 22, UIKit.TEXT, true), 4)
 	v.add_child(_form_name)
 	_forms_row = HBoxContainer.new()
 	_forms_row.add_theme_constant_override("separation", 10)
 	v.add_child(_forms_row)
 	for i in MorphBall.FORMS.size():
 		var pc := PanelContainer.new()
-		pc.custom_minimum_size = Vector2(56, 56)
+		pc.custom_minimum_size = Vector2(52, 52)
 		var c := CenterContainer.new()
 		pc.add_child(c)
 		_forms_row.add_child(pc)
@@ -378,7 +378,7 @@ func _build_save_toast() -> void:
 	UIKit.place(_save_toast, Vector4(1, 0, 1, 0), Vector4(-220, -60, -30, -30))
 	_save_toast.alignment = BoxContainer.ALIGNMENT_END
 	_save_toast.add_child(UIIcon.make("save", UIKit.ACCENT, 22))
-	_save_toast.add_child(UIKit.outline(UIKit.label("已自动保存", 18, UIKit.TEXT, true), 6))
+	_save_toast.add_child(UIKit.outline(UIKit.label("已自动保存", 18, UIKit.TEXT, true), 4))
 	_save_toast.modulate.a = 0.0
 	_root.add_child(_save_toast)
 
@@ -411,19 +411,19 @@ func _refresh_forms() -> void:
 			unlocked_count += 1
 		var active := i == cur
 		pc.visible = unlocked or i <= 2
-		var st := UIKit.panel(Color(f.color, 0.3) if active else UIKit.BG, f.color if active else UIKit.LINE, 999, 4, 3 if active else 1)
-		if active:
-			st.shadow_color = Color(f.color, 0.5)
-			st.shadow_size = 12
+		var ink: Color = UIKit.TEXT if active else UIKit.ACCENT
+		var st := UIKit.panel(UIKit.BG_SOLID if active else UIKit.BG, UIKit.ACCENT2 if active else UIKit.LINE, 2, 4, 1)
+		st.border_width_bottom = 2 if active else 1
+		st.shadow_size = 0
 		pc.add_theme_stylebox_override("panel", st)
-		pc.custom_minimum_size = Vector2(64, 64) if active else Vector2(50, 50)
+		pc.custom_minimum_size = Vector2(58, 58) if active else Vector2(50, 50)
 		var c := pc.get_child(0)
 		for ch in c.get_children():
 			ch.queue_free()
 		if unlocked:
-			c.add_child(UIIcon.make("form_" + f.id, f.color if active else Color(f.color, 0.75), 30 if active else 22))
+			c.add_child(UIIcon.make("form_" + f.id, ink if active else Color(ink, 0.75), 30 if active else 22))
 		else:
-			c.add_child(UIIcon.make("lock", Color(1, 1, 1, 0.3), 18))
+			c.add_child(UIIcon.make("lock", Color(UIKit.DIM, 0.8), 18))
 	_form_name.text = MorphBall.FORMS[cur].name if p else ""
 	var hint: HBoxContainer = _forms_row.get_parent().get_node("Hint")
 	for ch in hint.get_children():
@@ -442,14 +442,12 @@ func _refresh_prompts() -> void:
 	_prompt_idle = 0.0
 	if p:
 		_prompts.add_child(UIKit.prompt("ability", MorphBall.FORMS[p.form].ability, 21))
-	_prompts.add_child(UIKit.prompt("boost", "加速", 21))
 	if GameState.allow_jump and p:
 		_prompts.add_child(UIKit.prompt("jump", MorphBall.FORMS[p.form].jump_name, 21))
 	if _grab_hint != "":
 		var gp := UIKit.prompt("grab", _grab_hint, 28)
 		gp.modulate = UIKit.ACCENT2
 		_prompts.add_child(gp)
-	_prompts.add_child(UIKit.prompt("pause", "菜单", 21))
 	if _form_badges.size() > 0:
 		pass
 
@@ -467,9 +465,9 @@ func _on_objective(_i: int, text: String, _pos: Vector3) -> void:
 	_obj_text.text = text
 	_obj_card.visible = text != ""
 	# 新目标：卡片从右侧滑入并闪一下
-	_obj_card.modulate = Color(1.6, 1.4, 0.8, 0.0)
+	_obj_card.modulate = Color(1, 1, 1, 0)
 	var tw := create_tween().set_parallel()
-	tw.tween_property(_obj_card, "modulate", Color.WHITE, 0.5)
+	tw.tween_property(_obj_card, "modulate", Color.WHITE, 0.35)
 	if _i > 0:
 		Sfx.play("checkpoint", Vector3.INF, -10.0, 0.0)
 
@@ -483,21 +481,21 @@ func _on_saved() -> void:
 func show_area_title(small: String, big: String, sub := "") -> void:
 	for c in _title_card.get_children():
 		c.queue_free()
-	var a := UIKit.outline(UIKit.label(small, 26, UIKit.ACCENT2, true), 8)
+	var a := UIKit.outline(UIKit.label(small, 24, UIKit.ACCENT2, true), 4)
 	a.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var b := UIKit.outline(UIKit.label(big, 72, Color.WHITE, true), 12, Color(0.03, 0.12, 0.25, 0.8))
+	var b := UIKit.outline(UIKit.label(big, 64, UIKit.TEXT, true), 5)
 	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title_card.add_child(a)
 	_title_card.add_child(b)
 	if sub != "":
-		var c := UIKit.outline(UIKit.label(_fmt(sub), 24, UIKit.TEXT), 8)
+		var c := UIKit.outline(UIKit.label(_fmt(sub), 23, UIKit.TEXT), 4)
 		c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_title_card.add_child(c)
 	var tw := create_tween()
-	_title_card.scale = Vector2(0.92, 0.92)
+	_title_card.scale = Vector2(0.98, 0.98)
 	_title_card.pivot_offset = _title_card.size * 0.5
 	tw.tween_property(_title_card, "modulate:a", 1.0, 0.5)
-	tw.parallel().tween_property(_title_card, "scale", Vector2.ONE, 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(_title_card, "scale", Vector2.ONE, 0.25 if bool(Settings.get_v("reduce_motion")) else 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_interval(2.2)
 	tw.tween_property(_title_card, "modulate:a", 0.0, 0.8)
 

@@ -6,12 +6,12 @@ extends RefCounted
 const PRESETS := {
 	# 第一章：晴朗的上午，清透的蓝，远处是一圈白色积云
 	"greenhouse": {
-		"top": Color(0.20, 0.45, 0.93), "mid": Color(0.47, 0.71, 1.0), "horizon": Color(0.88, 0.94, 1.0), "bottom": Color(0.62, 0.74, 0.97),
-		"sun_rot": Vector3(-40, -140, 0), "sun_color": Color(1.0, 0.95, 0.86), "sun_energy": 1.5, "sun_tint": Color(1.0, 0.93, 0.8),
-		"cloud_lit": Color(1.0, 1.0, 1.0), "cloud_shade": Color(0.74, 0.80, 0.96), "gap": Color(0.52, 0.62, 0.92),
-		"fog": Color(0.80, 0.88, 1.0), "fog_density": 0.00077, "fog_height": -6.0, "fog_height_density": 0.0140,
+		"top": Color(0.30, 0.57, 0.58), "mid": Color(0.60, 0.75, 0.68), "horizon": Color(0.93, 0.83, 0.65), "bottom": Color(0.60, 0.73, 0.65),
+		"sun_rot": Vector3(-40, -140, 0), "sun_color": Color(1.0, 0.88, 0.66), "sun_energy": 1.65, "sun_tint": Color(1.0, 0.84, 0.59),
+		"cloud_lit": Color(0.99, 0.95, 0.82), "cloud_shade": Color(0.62, 0.70, 0.64), "gap": Color(0.40, 0.55, 0.55),
+		"fog": Color(0.85, 0.82, 0.68), "fog_density": 0.00028, "fog_height": -18.0, "fog_height_density": 0.0050,
 		"planet": Vector3(-0.2, 0.42, -0.88), "planet_radius": 0.1, "planet_color": Color(0.88, 0.80, 1.0), "planet_band": Color(0.66, 0.62, 0.95),
-		"moon": Vector3(0.95, 0.22, 0.2), "stars": 0.0, "horizon_glow": 0.25, "ambient": 1.0,
+		"moon": Vector3(0.95, 0.22, 0.2), "stars": 0.0, "horizon_glow": 0.18, "ambient": 0.72,
 	},
 	# 第二章：工坊的黄昏——低低的橙色太阳，紫色的天，烟囱的剪影
 	"gearworks": {
@@ -69,12 +69,12 @@ const PRESETS := {
 	},
 	# 标题画面：暖黄昏
 	"title": {
-		"top": Color(0.22, 0.42, 0.92), "mid": Color(0.62, 0.66, 0.95), "horizon": Color(1.0, 0.86, 0.74), "bottom": Color(0.72, 0.72, 0.9),
-		"sun_rot": Vector3(-32, 0, 0), "sun_color": Color(1.0, 0.9, 0.78), "sun_energy": 1.55, "sun_tint": Color(1.0, 0.75, 0.5),
-		"cloud_lit": Color(1.0, 0.95, 0.9), "cloud_shade": Color(0.74, 0.72, 0.9), "gap": Color(0.5, 0.52, 0.85),
-		"fog": Color(1.0, 0.9, 0.8), "fog_density": 0.00084, "fog_height": -6.0, "fog_height_density": 0.0120,
+		"top": Color(0.06, 0.29, 0.32), "mid": Color(0.25, 0.54, 0.53), "horizon": Color(0.91, 0.65, 0.45), "bottom": Color(0.47, 0.61, 0.56),
+		"sun_rot": Vector3(-32, 0, 0), "sun_color": Color(1.0, 0.87, 0.65), "sun_energy": 1.65, "sun_tint": Color(1.0, 0.75, 0.48),
+		"cloud_lit": Color(0.99, 0.94, 0.79), "cloud_shade": Color(0.55, 0.68, 0.63), "gap": Color(0.21, 0.43, 0.44),
+		"fog": Color(0.78, 0.67, 0.54), "fog_density": 0.00028, "fog_height": -18.0, "fog_height_density": 0.0050,
 		"planet": Vector3(-0.5, 0.3, -0.8), "planet_radius": 0.11, "planet_color": Color(0.9, 0.82, 1.0), "planet_band": Color(0.72, 0.64, 0.95),
-		"moon": Vector3(0.4, 0.4, -0.8), "stars": 0.1, "horizon_glow": 0.45, "ambient": 1.0,
+		"moon": Vector3(0.4, 0.4, -0.8), "stars": 0.1, "horizon_glow": 0.24, "ambient": 0.72,
 	},
 }
 
@@ -123,16 +123,16 @@ static func apply(node: Node, name: String, keep_sun_yaw := false) -> Dictionary
 		env.fog_light_color = p.fog
 		env.fog_density = p.fog_density
 		env.fog_sky_affect = 0.0
-		env.fog_aerial_perspective = 0.35
+		env.fog_aerial_perspective = 0.16
 		env.fog_height = p.fog_height
 		env.fog_height_density = p.fog_height_density
 		env.glow_enabled = true
-		env.glow_intensity = 0.75
-		env.glow_bloom = 0.06
-		env.glow_hdr_threshold = 1.1
+		env.glow_intensity = 0.36
+		env.glow_bloom = 0.0
+		env.glow_hdr_threshold = 1.25
 		env.adjustment_enabled = true
-		env.adjustment_saturation = 1.08
-		env.adjustment_contrast = 1.03
+		env.adjustment_saturation = 1.0
+		env.adjustment_contrast = 1.02
 		we.environment = env
 	var sun := root.get_node_or_null("Sun") as DirectionalLight3D
 	if sun:

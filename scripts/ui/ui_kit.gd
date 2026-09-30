@@ -2,53 +2,63 @@ class_name UIKit
 extends RefCounted
 ## 统一的界面风格：配色、字体、面板、按钮、手柄按键图标。所有界面都从这里取样式。
 
-## 可爱科幻配色：深靛蓝底 + 天空蓝 / 阳光黄点缀（和 Kenney 粉彩素材一致）
-const BG := Color(0.14, 0.15, 0.36, 0.86)
-const BG_SOLID := Color(0.16, 0.17, 0.39, 0.97)
-const LINE := Color(1, 1, 1, 0.16)
-const ACCENT := Color("62dcff")
-const ACCENT2 := Color("ffd769")
-const TEXT := Color("fdfaff")
-const DIM := Color("bcc0ea")
-const DANGER := Color("ff7a9c")
-const GOOD := Color("66daa3")
+## 山谷序曲：深青、雾白、苔绿与极少量日光金。
+const BG := Color(0.045, 0.145, 0.155, 0.78)
+const BG_SOLID := Color(0.055, 0.16, 0.17, 0.96)
+const LINE := Color(0.64, 0.77, 0.72, 0.43)
+const ACCENT := Color("a9c9ac")
+const ACCENT2 := Color("e3bd84")
+const TEXT := Color("f6f5e9")
+const DIM := Color("c2d2c8")
+const DANGER := Color("ee9c86")
+const GOOD := Color("b9d3aa")
 
-## 字体：英文数字用圆润的 Fredoka，中文用站酷快乐体（都是 OFL 开源字体）
-const FONT_LATIN := "res://assets/fonts/Fredoka.ttf"
-const FONT_CJK := "res://assets/fonts/ZCOOLKuaiLe.ttf"
+const FONT_CJK := "res://assets/fonts/TsangerYuMo-W02.ttf"
+const FONT_CJK_BOLD := "res://assets/fonts/TsangerYuMo-W03.ttf"
+const FONT_CJK_DISPLAY := "res://assets/fonts/TsangerYuMo-W01.ttf"
+const FONT_FALLBACK := "res://assets/fonts/NotoSansSC-UI.ttf"
+const FONT_LATIN := "res://assets/fonts/Raleway-UI.ttf"
 
 static var _font: Font
 static var _font_bold: Font
+static var _font_display: Font
+static var _font_latin: Font
 static var _theme: Theme
 
 static func font(bold := false) -> Font:
 	if _font == null:
 		var cjk := load(FONT_CJK) as FontFile
-		var latin := load(FONT_LATIN) as FontFile
-		var cjk_bold := FontVariation.new()
-		cjk_bold.base_font = cjk
-		cjk_bold.variation_embolden = 0.55
-		var reg := FontVariation.new()
-		reg.base_font = latin
-		reg.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 500}
-		reg.fallbacks = [cjk]
-		var bold_v := FontVariation.new()
-		bold_v.base_font = latin
-		bold_v.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 650}
-		bold_v.fallbacks = [cjk_bold]
-		_font = reg
+		var bold_v := load(FONT_CJK_BOLD) as FontFile
+		var display := load(FONT_CJK_DISPLAY) as FontFile
+		var fallback := load(FONT_FALLBACK) as FontFile
+		for face in [cjk, bold_v, display]:
+			face.fallbacks = [fallback]
+		var latin := FontVariation.new()
+		latin.base_font = load(FONT_LATIN) as FontFile
+		latin.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 260}
+		_font = cjk
 		_font_bold = bold_v
+		_font_display = display
+		_font_latin = latin
 	return _font_bold if bold else _font
 
-static func panel(bg := BG, border := LINE, radius := 20, pad := 18, border_w := 2) -> StyleBoxFlat:
+static func display_font() -> Font:
+	font()
+	return _font_display
+
+static func latin_font() -> Font:
+	font()
+	return _font_latin
+
+static func panel(bg := BG, border := LINE, radius := 6, pad := 18, border_w := 1) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
 	s.border_color = border
 	s.set_border_width_all(border_w)
 	s.set_corner_radius_all(radius)
 	s.set_content_margin_all(pad)
-	s.shadow_color = Color(0, 0, 0, 0.35)
-	s.shadow_size = 10
+	s.shadow_color = Color(0.01, 0.04, 0.05, 0.16)
+	s.shadow_size = 4
 	s.anti_aliasing = true
 	return s
 
@@ -61,16 +71,17 @@ static func theme() -> Theme:
 	t.default_font_size = 22
 	t.set_color("font_color", "Label", TEXT)
 	# 按钮
-	var normal := panel(Color(1, 1, 1, 0.05), Color(1, 1, 1, 0.08), 12, 14)
+	var normal := panel(Color.TRANSPARENT, Color(ACCENT2, 0.12), 2, 14)
 	normal.content_margin_left = 24
 	normal.content_margin_right = 24
-	var hover := panel(Color(0.31, 0.82, 1.0, 0.16), ACCENT, 12, 14, 2)
+	normal.shadow_size = 0
+	var hover := panel(Color(ACCENT2, 0.12), ACCENT2, 2, 14, 1)
 	hover.content_margin_left = 24
 	hover.content_margin_right = 24
-	hover.shadow_color = Color(0.31, 0.82, 1.0, 0.35)
-	hover.shadow_size = 14
+	hover.shadow_color = Color(ACCENT2, 0.15)
+	hover.shadow_size = 0
 	var pressed := hover.duplicate() as StyleBoxFlat
-	pressed.bg_color = Color(0.31, 0.82, 1.0, 0.3)
+	pressed.bg_color = Color(ACCENT2, 0.22)
 	var disabled := normal.duplicate() as StyleBoxFlat
 	disabled.bg_color = Color(1, 1, 1, 0.02)
 	for st in [["normal", normal], ["hover", hover], ["focus", hover], ["pressed", pressed], ["disabled", disabled], ["hover_pressed", pressed]]:
@@ -78,13 +89,13 @@ static func theme() -> Theme:
 	t.set_font("font", "Button", font(true))
 	t.set_font_size("font_size", "Button", 24)
 	t.set_color("font_color", "Button", TEXT)
-	t.set_color("font_hover_color", "Button", Color.WHITE)
-	t.set_color("font_focus_color", "Button", Color.WHITE)
-	t.set_color("font_pressed_color", "Button", Color.WHITE)
-	t.set_color("font_disabled_color", "Button", Color(1, 1, 1, 0.3))
+	t.set_color("font_hover_color", "Button", TEXT)
+	t.set_color("font_focus_color", "Button", TEXT)
+	t.set_color("font_pressed_color", "Button", TEXT)
+	t.set_color("font_disabled_color", "Button", Color(TEXT, 0.38))
 	t.set_constant("h_separation", "Button", 12)
 	# 滑条
-	var track := panel(Color(1, 1, 1, 0.12), Color(0, 0, 0, 0), 4, 0)
+	var track := panel(Color(ACCENT, 0.16), Color(0, 0, 0, 0), 4, 0)
 	track.content_margin_top = 4
 	track.content_margin_bottom = 4
 	var fill := panel(ACCENT, Color(0, 0, 0, 0), 4, 0)
@@ -99,14 +110,14 @@ static func theme() -> Theme:
 		for x in 22:
 			var d := Vector2(x - 10.5, y - 10.5).length()
 			if d < 10.5:
-				knob.set_pixel(x, y, Color(1, 1, 1, clampf(10.5 - d, 0, 1)))
+				knob.set_pixel(x, y, Color(0.61, 0.44, 0.22, clampf(10.5 - d, 0, 1)))
 	var ktex := ImageTexture.create_from_image(knob)
 	t.set_icon("grabber", "HSlider", ktex)
 	t.set_icon("grabber_highlight", "HSlider", ktex)
 	t.set_stylebox("focus", "HSlider", panel(Color(0, 0, 0, 0), ACCENT, 8, 0, 2))
 	# 复选
 	t.set_font("font", "CheckButton", font(true))
-	t.set_stylebox("focus", "CheckButton", panel(Color(0.31, 0.82, 1.0, 0.12), ACCENT, 10, 8, 2))
+	t.set_stylebox("focus", "CheckButton", panel(Color(ACCENT2, 0.12), ACCENT2, 4, 8, 1))
 	t.set_color("font_color", "CheckButton", TEXT)
 	_theme = t
 	return t
@@ -119,8 +130,18 @@ static func label(text: String, size := 22, color := TEXT, bold := false) -> Lab
 	l.add_theme_color_override("font_color", color)
 	return l
 
-static func outline(l: Label, size := 8, color := Color(0, 0, 0, 0.55)) -> Label:
-	l.add_theme_constant_override("outline_size", size)
+static func display_label(text: String, size := 48, color := TEXT) -> Label:
+	var l := label(text, size, color)
+	l.add_theme_font_override("font", display_font())
+	return l
+
+static func latin_label(text: String, size := 24, color := TEXT) -> Label:
+	var l := label(text, size, color)
+	l.add_theme_font_override("font", latin_font())
+	return l
+
+static func outline(l: Label, size := 4, color := Color(0.02, 0.09, 0.1, 0.72)) -> Label:
+	l.add_theme_constant_override("outline_size", mini(size, 5))
 	l.add_theme_color_override("font_outline_color", color)
 	return l
 
@@ -205,12 +226,22 @@ static func prompt(action: String, desc: String, size := 20) -> HBoxContainer:
 ## 给按钮加上焦点动效与音效
 static func juice(b: Button) -> void:
 	b.focus_entered.connect(func() -> void:
-		b.pivot_offset = b.size * 0.5
-		var tw := b.create_tween()
-		tw.tween_property(b, "scale", Vector2(1.04, 1.04), 0.08)
+		motion_scale(b, 1.015, 0.14)
 		Sfx.play("ui_move", Vector3.INF, -12.0, 0.03))
-	b.focus_exited.connect(func() -> void:
-		var tw := b.create_tween()
-		tw.tween_property(b, "scale", Vector2.ONE, 0.08))
+	b.focus_exited.connect(func() -> void: motion_scale(b, 1.0, 0.14))
 	b.mouse_entered.connect(func() -> void: b.grab_focus())
+	press_feedback(b)
 	b.pressed.connect(func() -> void: Sfx.play("ui_confirm", Vector3.INF, -8.0, 0.0))
+
+static func press_feedback(b: Button) -> void:
+	b.button_down.connect(func() -> void: motion_scale(b, 0.965, 0.08))
+	b.button_up.connect(func() -> void: motion_scale(b, 1.015 if b.has_focus() else 1.0, 0.22, true))
+
+static func motion_scale(c: Control, target: float, seconds: float, spring := false) -> void:
+	var previous: Tween = c.get_meta(&"motion_tween") as Tween if c.has_meta(&"motion_tween") else null
+	if previous and previous.is_valid():
+		previous.kill()
+	c.pivot_offset = c.size * 0.5
+	var tw := c.create_tween().set_ignore_time_scale(true).set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tw.tween_property(c, "scale", Vector2.ONE * target, 0.05 if bool(Settings.get_v("reduce_motion")) else seconds).set_trans(Tween.TRANS_BACK if spring else Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	c.set_meta(&"motion_tween", tw)

@@ -1,6 +1,6 @@
 extends Node3D
 ## 开始界面。
-## 画面：黄昏光线下的浮岛全景，镜头缓慢环绕；主角 PIX 悬浮在镜头前；旋转的立方体徽记 + 流光标题。
+## 画面：浮岛全景留给世界，左侧像一页薄纸承载标题与操作。
 ## 流程：黑场淡入 → 标志依次浮现 → 按任意键 → 主菜单（继续 / 新游戏 / 读取 / 设置 / 赞赏作者 / 退出）
 
 @onready var world: VoxelWorld = $VoxelWorld
@@ -11,10 +11,9 @@ var _ui: Control
 var _black: ColorRect
 var _dim: ColorRect
 var _logo: Control
-var _emblem: CubeEmblem
 var _title_label: Label
-var _shimmer: ShaderMaterial
 var _rule: ColorRect
+var _fragments: Array[Control] = []
 var _press: HBoxContainer
 var _menu: VBoxContainer
 var _hints: HBoxContainer
@@ -28,10 +27,10 @@ var _slot_mode := "new"
 var _hero: Node3D
 var _hero_ring: Node3D
 var _hero_eyes: Array[MeshInstance3D] = []
-var _logo_y := 96.0
+var _logo_y := 72.0
 
 const CENTER := Vector3(32, 10, 25)
-const MENU_W := 520.0
+const MENU_W := 420.0
 const ANGLE0 := 0.15     ## 镜头构图的基准角度：只在附近缓慢摆动，不整圈环绕
 
 func _ready() -> void:
@@ -81,15 +80,11 @@ func _process(delta: float) -> void:
 	_angle = ANGLE0 + sin(_t * 0.045) * 0.22
 	var p := CENTER + Vector3(cos(_angle) * 60.0, 19.0 + sin(_angle * 0.7) * 2.5, sin(_angle) * 60.0)
 	_cam.global_position = p
-	_cam.look_at(CENTER + Vector3(0, 6.5, 0))
+	_cam.look_at(CENTER + Vector3(0, 17.0, 0))
 	if _press and _state == "press":
 		_press.modulate.a = 0.4 + 0.6 * (0.5 + 0.5 * sin(_t * 2.4))
 	if _logo:
 		_logo.position.y = _logo_y + sin(_t * 1.1) * 3.0
-	if _shimmer:
-		# 每 5 秒扫过一次流光
-		var cyc := fmod(_t, 5.0) / 1.4
-		_shimmer.set_shader_parameter("sweep", lerpf(-200.0, 1300.0, clampf(cyc, 0.0, 1.0)))
 	if _hero:
 		_hero.position = Vector3(2.7, -1.05 + sin(_t * 1.6) * 0.07, -6.4)
 		_hero.rotation = Vector3(sin(_t * 0.9) * 0.1, sin(_t * 0.5) * 0.35, sin(_t * 0.7) * 0.08)
@@ -103,17 +98,17 @@ func _build_hero() -> void:
 	_hero = Node3D.new()
 	_cam.add_child(_hero)
 	var shell := StandardMaterial3D.new()
-	shell.albedo_color = Color("f3f5ff")
-	shell.roughness = 0.25
-	shell.metallic = 0.5
+	shell.albedo_color = Color("f6f2e6")
+	shell.roughness = 0.72
+	shell.metallic = 0.08
 	shell.rim_enabled = true
 	shell.rim = 0.6
 	shell.rim_tint = 0.4
 	var glow := StandardMaterial3D.new()
-	glow.albedo_color = Color("46c3ff")
+	glow.albedo_color = Color("8ed8d3")
 	glow.emission_enabled = true
-	glow.emission = Color("46c3ff")
-	glow.emission_energy_multiplier = 3.0
+	glow.emission = Color("8ed8d3")
+	glow.emission_energy_multiplier = 1.6
 	var ball := MeshInstance3D.new()
 	var sm := SphereMesh.new()
 	sm.radius = 0.48
@@ -143,7 +138,7 @@ func _build_hero() -> void:
 	visor.mesh = vm
 	var vmat := StandardMaterial3D.new()
 	vmat.albedo_color = Color("1b1f3b")
-	vmat.roughness = 0.15
+	vmat.roughness = 0.58
 	visor.material_override = vmat
 	visor.scale = Vector3(1.35, 0.95, 0.35)
 	visor.position = Vector3(0, 0.1, -0.43)
@@ -164,14 +159,14 @@ func _build_hero() -> void:
 		face.add_child(e)
 		_hero_eyes.append(e)
 	var light := OmniLight3D.new()
-	light.light_color = Color("46c3ff")
-	light.light_energy = 0.7
+	light.light_color = Color("8ed8d3")
+	light.light_energy = 0.45
 	light.omni_range = 2.5
 	_hero.add_child(light)
 	# 暖色轮廓光，让主角从黄昏背景里跳出来
 	var rim := OmniLight3D.new()
 	rim.light_color = Color(1.0, 0.75, 0.5)
-	rim.light_energy = 2.0
+	rim.light_energy = 1.1
 	rim.omni_range = 3.0
 	rim.position = Vector3(1.2, 0.8, -1.0)
 	_hero.add_child(rim)
@@ -200,10 +195,10 @@ func _build_ui() -> void:
 	# 根节点不拦鼠标：否则“按任意键开始”时鼠标点击被它吃掉，传不到 _unhandled_input
 	_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(_ui)
-	# 暗角
+	# 天空保留标题的负空间；菜单一侧有轻微暗部以维持可读性。
 	var vg := Gradient.new()
 	vg.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
-	vg.colors = PackedColorArray([Color(0.02, 0.03, 0.08, 0.0), Color(0.02, 0.03, 0.08, 0.05), Color(0.05, 0.05, 0.2, 0.4)])
+	vg.colors = PackedColorArray([Color(0.02, 0.09, 0.10, 0.0), Color(0.02, 0.09, 0.10, 0.0), Color(0.02, 0.09, 0.10, 0.18)])
 	var vt := GradientTexture2D.new()
 	vt.gradient = vg
 	vt.fill = GradientTexture2D.FILL_RADIAL
@@ -215,18 +210,19 @@ func _build_ui() -> void:
 	vign.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vign.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(vign)
-	# 左侧柔和遮罩，给文字留出“呼吸”的底
+	# 左侧深青渐隐，只托住菜单，不形成实体卡片。
 	var sg := Gradient.new()
-	sg.set_color(0, Color(0.03, 0.05, 0.12, 0.7))
-	sg.set_color(1, Color(0.03, 0.05, 0.12, 0.0))
+	sg.offsets = PackedFloat32Array([0.0, 0.58, 1.0])
+	sg.colors = PackedColorArray([Color(0.02, 0.11, 0.12, 0.64), Color(0.02, 0.11, 0.12, 0.36), Color(0.02, 0.11, 0.12, 0.0)])
 	var st := GradientTexture2D.new()
 	st.gradient = sg
-	st.fill_from = Vector2(0, 0)
+	st.fill = GradientTexture2D.FILL_RADIAL
+	st.fill_from = Vector2(0, 1)
 	st.fill_to = Vector2(1, 0)
 	var shade := TextureRect.new()
 	shade.texture = st
 	shade.stretch_mode = TextureRect.STRETCH_SCALE
-	UIKit.place(shade, Vector4(0, 0, 0.55, 1), Vector4.ZERO)
+	UIKit.place(shade, Vector4(0, 0.45, 0.47, 1), Vector4.ZERO)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(shade)
 	# 空气中漂浮的光尘
@@ -259,15 +255,15 @@ func _build_ui() -> void:
 	# 按任意键
 	_press = HBoxContainer.new()
 	_press.add_theme_constant_override("separation", 10)
-	UIKit.place(_press, Vector4(0, 1, 0, 1), Vector4(128, -200, 800, -150))
+	UIKit.place(_press, Vector4(0, 1, 0, 1), Vector4(144, -190, 700, -140))
 	_press.modulate.a = 0.0
 	_press.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(_press)
 	# 主菜单
 	_menu = VBoxContainer.new()
-	_menu.add_theme_constant_override("separation", 2)
+	_menu.add_theme_constant_override("separation", 6)
 	# 菜单占标题下方到底部提示之间的区域；打开菜单时标题会缩小上移，给菜单让位
-	UIKit.place(_menu, Vector4(0, 0, 0, 1), Vector4(96, 300, 96 + MENU_W, -104))
+	UIKit.place(_menu, Vector4(0, 0, 0, 1), Vector4(132, 390, 132 + MENU_W, -105))
 	_menu.alignment = BoxContainer.ALIGNMENT_END
 	_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_menu.visible = false
@@ -275,26 +271,26 @@ func _build_ui() -> void:
 	# 底部按键提示
 	_hints = HBoxContainer.new()
 	_hints.add_theme_constant_override("separation", 26)
-	UIKit.place(_hints, Vector4(0, 1, 0, 1), Vector4(128, -70, 800, -34))
+	UIKit.place(_hints, Vector4(0, 1, 0, 1), Vector4(144, -72, 700, -34))
 	_hints.modulate.a = 0.0
 	_hints.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(_hints)
 	_refresh_glyphs()
 	# 版本号
-	var ver := UIKit.label("v1.1  ·  全六章 + 关卡编辑器", 15, Color(1, 1, 1, 0.45))
+	var ver := UIKit.label("VOXEL ARK   /   v1.1", 16, UIKit.DIM)
 	UIKit.place(ver, Vector4(1, 1, 1, 1), Vector4(-280, -52, -40, -26))
 	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_ui.add_child(ver)
 	# 弹出面板时的压暗层
 	_dim = ColorRect.new()
-	_dim.color = Color(0.01, 0.02, 0.05, 0.55)
+	_dim.color = Color(0.19, 0.22, 0.21, 0.38)
 	_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dim.modulate.a = 0.0
 	_ui.add_child(_dim)
 	# 设置
 	_settings = SettingsPanel.new()
-	UIKit.place(_settings, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-350, -340, 350, 340))
+	UIKit.place(_settings, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-350, -280, 350, 280))
 	_settings.visible = false
 	_settings.closed.connect(func() -> void:
 		_settings.visible = false
@@ -310,62 +306,69 @@ func _build_ui() -> void:
 
 func _build_logo() -> void:
 	_logo = Control.new()
-	UIKit.place(_logo, Vector4(0, 0, 0, 0), Vector4(96, _logo_y, 1000, _logo_y + 360))
+	_logo_y = 28.0
+	UIKit.place(_logo, Vector4(0.5, 0, 0.5, 0), Vector4(-480, _logo_y, 480, _logo_y + 330))
 	_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(_logo)
-	_emblem = CubeEmblem.new()
-	_emblem.position = Vector2(0, 14)
-	_emblem.size = Vector2(150, 150)
-	_emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_logo.add_child(_emblem)
-	_title_label = UIKit.label("方舟星球", 124, Color.WHITE, true)
-	UIKit.outline(_title_label, 10, Color(0.04, 0.1, 0.22, 0.75))
-	_title_label.position = Vector2(160, 0)
-	_title_label.add_theme_constant_override("shadow_offset_x", 0)
-	_title_label.add_theme_constant_override("shadow_offset_y", 8)
-	_title_label.add_theme_constant_override("shadow_outline_size", 24)
-	_title_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.05, 0.15, 0.35))
-	_shimmer = ShaderMaterial.new()
-	_shimmer.shader = load("res://shaders/ui_shimmer.gdshader")
-	_title_label.material = _shimmer
+	var face := UIKit.latin_font()
+	var line := "VOXEL ARK"
+	var tracking := 19.0
+	var width := face.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 90).x + (line.length() - 1) * tracking
+	var x := (960.0 - width) * 0.5
+	for i in line.length():
+		var ch := line.substr(i, 1)
+		var advance := face.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 90).x + tracking
+		if ch != " ":
+			for strip in 3:
+				var clip := Control.new()
+				clip.clip_contents = true
+				clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				clip.size = Vector2(advance + 8.0, 44.0)
+				var target := Vector2(x, 40.0 + strip * 44.0)
+				clip.set_meta(&"rest", target)
+				var n := (i * 37 + strip * 19) % 11
+				clip.position = target + Vector2((n - 5) * 10.0, ((n * 7) % 9 - 4) * 5.0)
+				clip.modulate.a = 0.0
+				var glyph := UIKit.latin_label(ch, 90)
+				glyph.position = Vector2(0, -strip * 44.0)
+				clip.add_child(glyph)
+				_logo.add_child(clip)
+				_fragments.append(clip)
+		x += advance
+	_title_label = UIKit.display_label("方舟星球", 78)
+	_title_label.position = Vector2(0, 175)
+	_title_label.size = Vector2(960, 96)
+	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_logo.add_child(_title_label)
 	_rule = ColorRect.new()
-	_rule.color = UIKit.ACCENT
-	_rule.position = Vector2(166, 182)
-	_rule.size = Vector2(430, 2)
+	_rule.color = Color(UIKit.TEXT, 0.65)
+	_rule.position = Vector2(390, 278)
+	_rule.size = Vector2(180, 1)
 	_logo.add_child(_rule)
-	var dot := ColorRect.new()
-	dot.color = UIKit.ACCENT2
-	dot.size = Vector2(8, 8)
-	dot.position = Vector2(-4, -3)
-	dot.rotation = PI / 4.0
-	_rule.add_child(dot)
-	var sub := UIKit.label("V O X E L   A R K", 24, UIKit.ACCENT, true)
-	sub.add_theme_constant_override("outline_size", 0)
-	sub.position = Vector2(168, 196)
+	var sub := UIKit.latin_label("A  W O R L D  T O  R E B U I L D", 22, UIKit.TEXT)
+	sub.position = Vector2(0, 294)
+	sub.size = Vector2(960, 40)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_logo.add_child(sub)
-	for c in _logo.get_children():
-		(c as CanvasItem).modulate.a = 0.0
+	_title_label.modulate.a = 0.0
+	_rule.modulate.a = 0.0
+	sub.modulate.a = 0.0
 
-## 开场：黑场淡开 → 徽记、标题、细线、副标题依次浮现
+## 字形碎片归位 → 中文标题、细线和副标题跟入。
 func _intro() -> void:
 	var tw := create_tween()
-	tw.tween_property(_black, "color:a", 0.0, 2.2).set_trans(Tween.TRANS_SINE)
-	var kids := _logo.get_children()
-	var delays := [0.8, 1.2, 1.7, 2.0, 2.3]
-	for i in kids.size():
-		var c := kids[i] as Control
-		var d: float = delays[mini(i, delays.size() - 1)]
-		var target := c.position
-		c.position = target + Vector2(0, 16)
-		var t2 := create_tween().set_parallel()
-		t2.tween_property(c, "modulate:a", 1.0, 0.9).set_delay(d)
-		t2.tween_property(c, "position", target, 1.1).set_delay(d).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	# 细线从左往右画出来
-	var full := _rule.size.x
-	_rule.size.x = 0.0
-	create_tween().tween_property(_rule, "size:x", full, 1.2).set_delay(1.7).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	await get_tree().create_timer(2.8).timeout
+	tw.tween_property(_black, "color:a", 0.0, 0.7).set_trans(Tween.TRANS_SINE)
+	for i in _fragments.size():
+		var clip := _fragments[i]
+		var anim := create_tween().set_parallel()
+		anim.tween_property(clip, "position", clip.get_meta(&"rest"), 1.05).set_delay(0.24 + (i % 3) * 0.05).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		anim.tween_property(clip, "modulate:a", 1.0, 0.3).set_delay(0.16)
+	_title_label.position.y += 10.0
+	create_tween().tween_property(_title_label, "position:y", 175.0, 0.7).set_delay(0.85).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	create_tween().tween_property(_title_label, "modulate:a", 1.0, 0.6).set_delay(0.85)
+	create_tween().tween_property(_rule, "modulate:a", 1.0, 0.45).set_delay(1.15)
+	create_tween().tween_property(_logo.get_child(_logo.get_child_count() - 1), "modulate:a", 1.0, 0.55).set_delay(1.30)
+	await get_tree().create_timer(2.1).timeout
 	if _state == "intro":
 		_state = "press"
 
@@ -373,6 +376,8 @@ func _skip_intro() -> void:
 	for tw in get_tree().get_processed_tweens():
 		tw.custom_step(10.0)
 	_black.color.a = 0.0
+	for c in _fragments:
+		c.position = c.get_meta(&"rest")
 	for c in _logo.get_children():
 		(c as CanvasItem).modulate.a = 1.0
 
@@ -380,11 +385,11 @@ func _refresh_glyphs() -> void:
 	for c in _press.get_children():
 		c.queue_free()
 	if GameState.device == "kbm":
-		_press.add_child(UIKit.outline(UIKit.label("按任意键开始", 26, Color.WHITE, true), 6, Color(0, 0, 0, 0.4)))
+		_press.add_child(UIKit.label("按任意键开始", 25, UIKit.TEXT))
 	else:
-		_press.add_child(UIKit.outline(UIKit.label("按", 26, Color.WHITE, true), 6, Color(0, 0, 0, 0.4)))
+		_press.add_child(UIKit.label("按", 25, UIKit.TEXT))
 		_press.add_child(UIKit.glyph("ui_accept", 28))
-		_press.add_child(UIKit.outline(UIKit.label("开始", 26, Color.WHITE, true), 6, Color(0, 0, 0, 0.4)))
+		_press.add_child(UIKit.label("开始", 25, UIKit.TEXT))
 	for c in _hints.get_children():
 		c.queue_free()
 	_hints.add_child(UIKit.prompt("ui_accept", "确认", 18))
@@ -430,6 +435,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		"settings":
 			get_viewport().set_input_as_handled()
 			_settings.closed.emit()
+		"more":
+			get_viewport().set_input_as_handled()
+			_show_menu()
 
 # ================================================================ 主菜单
 
@@ -437,81 +445,37 @@ func _clear_menu() -> void:
 	for c in _menu.get_children():
 		c.queue_free()
 
-## 简洁的文字菜单项：选中时左侧亮起一根强调色竖条，背后淡淡的光带，文字右移
-func _item(text: String, cb: Callable, sub := "", accent := UIKit.ACCENT) -> Button:
+## 纸页上的文字菜单：薄金边保留明确的手柄焦点，其他状态尽量安静。
+func _item(text: String, cb: Callable, sub := "", accent := UIKit.ACCENT2) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.focus_mode = Control.FOCUS_ALL
-	b.custom_minimum_size = Vector2(MENU_W, 64 if sub != "" else 46)
-	var empty := StyleBoxEmpty.new()
-	empty.content_margin_left = 30
-	empty.content_margin_bottom = 22 if sub != "" else 0
-	for st in ["normal", "hover", "pressed", "focus", "disabled", "hover_pressed"]:
-		b.add_theme_stylebox_override(st, empty)
-	b.add_theme_font_size_override("font_size", 27)
-	b.add_theme_color_override("font_color", Color(1, 1, 1, 0.62))
-	b.add_theme_color_override("font_hover_color", Color.WHITE)
-	b.add_theme_color_override("font_focus_color", Color.WHITE)
-	b.add_theme_color_override("font_pressed_color", Color.WHITE)
-	b.add_theme_color_override("font_hover_pressed_color", Color.WHITE)
-	b.add_theme_constant_override("outline_size", 6)
-	b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.3))
-	# 背后的光带
-	var hg := Gradient.new()
-	hg.set_color(0, Color(accent, 0.18))
-	hg.set_color(1, Color(accent, 0.0))
-	var ht := GradientTexture2D.new()
-	ht.gradient = hg
-	ht.fill_to = Vector2(1, 0)
-	var hl := TextureRect.new()
-	hl.texture = ht
-	hl.stretch_mode = TextureRect.STRETCH_SCALE
-	hl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	hl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hl.show_behind_parent = true
-	hl.modulate.a = 0.0
-	b.add_child(hl)
-	# 左侧竖条
-	var bar := ColorRect.new()
-	bar.color = accent
-	UIKit.place(bar, Vector4(0, 0, 0, 1), Vector4(0, 10, 4, -10))
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar.scale.y = 0.0
-	b.add_child(bar)
+	b.custom_minimum_size = Vector2(MENU_W, 76 if sub != "" else 62)
+	var normal := UIKit.panel(Color.TRANSPARENT, Color.TRANSPARENT, 4, 10, 0)
+	var focused := UIKit.panel(Color(0.02, 0.10, 0.11, 0.08), accent, 2, 10, 0)
+	focused.border_width_left = 2
+	normal.shadow_size = 0
+	focused.shadow_size = 0
+	var pressed := focused.duplicate() as StyleBoxFlat
+	pressed.bg_color = Color(accent, 0.16)
+	for pair in [["normal", normal], ["disabled", normal], ["hover", focused], ["focus", focused], ["pressed", pressed], ["hover_pressed", pressed]]:
+		b.add_theme_stylebox_override(pair[0], pair[1])
+	b.add_theme_font_override("font", UIKit.font())
+	b.add_theme_font_size_override("font_size", 30)
+	b.add_theme_color_override("font_color", UIKit.TEXT)
+	b.add_theme_color_override("font_hover_color", UIKit.TEXT)
+	b.add_theme_color_override("font_focus_color", UIKit.TEXT)
+	b.add_theme_color_override("font_pressed_color", UIKit.TEXT)
 	if sub != "":
-		var sl := UIKit.label(sub, 16, Color(1, 1, 1, 0.55))
-		UIKit.place(sl, Vector4(0, 1, 1, 1), Vector4(32, -30, 0, -6))
+		var sl := UIKit.label(sub, 17, UIKit.DIM)
+		UIKit.place(sl, Vector4(0, 1, 1, 1), Vector4(22, -31, -8, -6))
 		sl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(sl)
-	b.focus_entered.connect(func() -> void:
-		bar.pivot_offset = Vector2(2, bar.size.y * 0.5)
-		var tw := b.create_tween().set_parallel()
-		tw.tween_property(bar, "scale:y", 1.0, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		tw.tween_property(hl, "modulate:a", 1.0, 0.16)
-		tw.tween_method(func(v: float) -> void: _margin(b, v), _margin_of(b), 44.0, 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		Sfx.play("ui_move", Vector3.INF, -12.0, 0.03))
-	b.focus_exited.connect(func() -> void:
-		var tw := b.create_tween().set_parallel()
-		tw.tween_property(bar, "scale:y", 0.0, 0.14)
-		tw.tween_property(hl, "modulate:a", 0.0, 0.14)
-		tw.tween_method(func(v: float) -> void: _margin(b, v), _margin_of(b), 30.0, 0.14))
-	b.mouse_entered.connect(func() -> void: b.grab_focus())
-	b.pressed.connect(func() -> void: Sfx.play("ui_confirm", Vector3.INF, -8.0, 0.0))
+	UIKit.juice(b)
 	b.pressed.connect(cb)
 	_menu.add_child(b)
 	return b
-
-func _margin_of(b: Button) -> float:
-	return (b.get_theme_stylebox("focus") as StyleBoxEmpty).content_margin_left
-
-## 所有状态共用同一个 StyleBoxEmpty，改一次即可让文字整体右移
-func _margin(b: Button, v: float) -> void:
-	(b.get_theme_stylebox("focus") as StyleBoxEmpty).content_margin_left = v
-	b.queue_redraw()
-	for c in b.get_children():
-		if c is Label:
-			(c as Label).offset_left = v + 2
 
 func _show_menu() -> void:
 	_state = "menu"
@@ -522,15 +486,10 @@ func _show_menu() -> void:
 	var latest := SaveGame.latest_slot()
 	var first: Button
 	if latest >= 0:
-		var d := SaveGame.read(latest)
-		first = _item("继续游戏", func() -> void: _continue(latest),
-			"存档 %d  ·  %s %s  ·  %s" % [latest + 1, Chapters.info(int(d.get("chapter", 1))).num, Chapters.info(int(d.get("chapter", 1))).title, SaveGame.format_time(float(d.get("play_time", 0)))])
-	var ng := _item("新游戏", func() -> void: _open_slots("new"))
+		first = _item("继续探索", func() -> void: _continue(latest))
+	var ng := _item("开始旅程", func() -> void: _open_slots("new"))
 	if first == null:
 		first = ng
-	if latest >= 0:
-		_item("读取存档", func() -> void: _open_slots("load"))
-	# 章节选择：任何一个存档到过的章节都能回去重玩（重玩不改存档，改装等级照带）
 	var reached := 0
 	var best_up := {}
 	for i in SaveGame.SLOTS:
@@ -543,19 +502,13 @@ func _show_menu() -> void:
 		if ch > reached:
 			reached = ch
 			best_up = sd.get("upgrades", {})
-	if reached >= 2:
-		_item("章节选择", func() -> void: _open_chapters(reached, best_up), "重玩到过的任意一章")
-	_item("关卡编辑器", func() -> void:
-		Music.stop()
-		Flow.goto_game("editor"), "自己搭关卡、试玩、导出文件分享给朋友")
 	_item("设置", func() -> void:
 		_state = "settings"
 		_menu.visible = false
 		_logo_show(false)
 		_dim_show(true)
 		_settings.open())
-	_item("赞赏作者", _open_donate, "", UIKit.ACCENT2)
-	_item("退出游戏", func() -> void: get_tree().quit())
+	_item("更多", func() -> void: _show_more_menu(latest, reached, best_up))
 	first.grab_focus.call_deferred()
 	# 菜单项依次滑入
 	var i := 0
@@ -566,6 +519,26 @@ func _show_menu() -> void:
 		tw.tween_property(ci, "modulate:a", 1.0, 0.25).set_delay(0.04 * i)
 		i += 1
 	create_tween().tween_property(_hints, "modulate:a", 1.0, 0.4)
+
+func _show_more_menu(latest: int, reached: int, best_up: Dictionary) -> void:
+	_state = "more"
+	_clear_menu()
+	var first: Button
+	if latest >= 0:
+		first = _item("读取存档", func() -> void: _open_slots("load"))
+	if reached >= 2:
+		var chapters := _item("章节选择", func() -> void: _open_chapters(reached, best_up))
+		if first == null:
+			first = chapters
+	var editor := _item("关卡编辑器", func() -> void:
+		Music.stop()
+		Flow.goto_game("editor"))
+	if first == null:
+		first = editor
+	_item("赞赏作者", _open_donate, "", UIKit.ACCENT2)
+	_item("退出游戏", func() -> void: get_tree().quit())
+	_item("返回", _show_menu)
+	first.grab_focus.call_deferred()
 
 func _open_chapters(reached: int, ups: Dictionary) -> void:
 	_state = "slots"
@@ -604,12 +577,7 @@ func _open_chapters(reached: int, ups: Dictionary) -> void:
 		first.grab_focus.call_deferred()
 
 func _logo_show(on: bool) -> void:
-	var tw := create_tween().set_parallel()
-	tw.tween_property(_logo, "modulate:a", 1.0 if on else 0.0, 0.25)
-	# 主菜单出现后标题缩小、上移，免得和菜单项叠在一起
-	if on and _state == "menu":
-		tw.tween_property(self, "_logo_y", 34.0, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		tw.tween_property(_logo, "scale", Vector2(0.62, 0.62), 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	create_tween().tween_property(_logo, "modulate:a", 1.0 if on else 0.0, 0.25)
 
 func _dim_show(on: bool) -> void:
 	create_tween().tween_property(_dim, "modulate:a", 1.0 if on else 0.0, 0.25)
@@ -617,7 +585,7 @@ func _dim_show(on: bool) -> void:
 func _panel(w: float, h: float, border := UIKit.LINE) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.theme = UIKit.theme()
-	p.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, border, 18, 30, 1 if border == UIKit.LINE else 2))
+	p.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, border, 6, 30, 1))
 	UIKit.place(p, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-w * 0.5, -h * 0.5, w * 0.5, h * 0.5))
 	_ui.add_child(p)
 	# 弹出动画
