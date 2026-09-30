@@ -83,9 +83,9 @@ def main():
         'SHIP_ENCRYPTED': '0', 'SHIP_GDIGNORE': 'tools', 'SHIP_STASH_DIR': remote + '/addon-stash',
         'SHIP_STASH_ALL': '', 'SHIP_STASH': '', 'SHIP_REQUIRED': '', 'SHIP_MIN_PCK_MB': '20',
     }
-    (out / 'probe.env').write_text(''.join(key + '=' + shlex.quote(value) + '\n' for key, value in env.items()), encoding='utf-8')
-    (out / 'run.sh').write_text(REMOTE_SCRIPT, encoding='utf-8')
-    shutil.copy2(args.ship_kit / 'apple/ios-ship.sh', out / 'ios-ship.sh')
+    (out / 'probe.env').write_text(''.join(key + '=' + shlex.quote(value) + '\n' for key, value in env.items()), encoding='utf-8', newline='\n')
+    (out / 'run.sh').write_text(REMOTE_SCRIPT, encoding='utf-8', newline='\n')
+    (out / 'ios-ship.sh').write_text((args.ship_kit / 'apple/ios-ship.sh').read_text(encoding='utf-8'), encoding='utf-8', newline='\n')
     # Reuse the known development export options without printing signing secrets.
     subprocess.run(['scp', '-q', args.mac + ':mt-build/ExportOptions-development.plist', str(out / 'ExportOptions-development.plist')], check=True)
     bundle = out / 'source.tar.gz'
