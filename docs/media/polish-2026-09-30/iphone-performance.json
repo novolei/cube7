@@ -1,0 +1,71 @@
+{
+	"chapter": 1,
+	"device": "Apple A19 Pro GPU (Apple9)",
+	"phases": [
+		{
+			"draw_calls_p95": 1018.0,
+			"frames": 318,
+			"gpu_p95_ms": 0.0,
+			"max_ms": 12.768,
+			"mean_ms": 9.43757232704402,
+			"p95_ms": 11.916,
+			"phase": "baseline"
+		},
+		{
+			"draw_calls_p95": 1236.0,
+			"frames": 23,
+			"gpu_p95_ms": 0.0,
+			"max_ms": 43.196,
+			"mean_ms": 16.7182173913043,
+			"p95_ms": 20.265,
+			"phase": "during breaks"
+		},
+		{
+			"draw_calls_p95": 1235.0,
+			"frames": 87,
+			"gpu_p95_ms": 0.0,
+			"max_ms": 21.437,
+			"mean_ms": 11.6332183908046,
+			"p95_ms": 18.123,
+			"phase": "0-1s after"
+		},
+		{
+			"draw_calls_p95": 1083.0,
+			"frames": 166,
+			"gpu_p95_ms": 0.0,
+			"max_ms": 22.09,
+			"mean_ms": 12.0630963855422,
+			"p95_ms": 18.803,
+			"phase": "1-3s after"
+		},
+		{
+			"draw_calls_p95": 1011.0,
+			"frames": 104,
+			"gpu_p95_ms": 0.0,
+			"max_ms": 13.152,
+			"mean_ms": 9.99039423076923,
+			"p95_ms": 11.983,
+			"phase": "kills 0-1s"
+		},
+		{
+			"draw_calls_p95": 989.0,
+			"frames": 316,
+			"gpu_p95_ms": 0.0,
+			"max_ms": 13.229,
+			"mean_ms": 9.4953164556962,
+			"p95_ms": 11.223,
+			"phase": "kills 1-4s"
+		},
+		{
+			"draw_calls_p95": 936.0,
+			"frames": 527,
+			"gpu_p95_ms": 0.0,
+			"max_ms": 11.924,
+			"mean_ms": 9.48773055028462,
+			"p95_ms": 11.142,
+			"phase": "later 4-9s"
+		}
+	],
+	"renderer": "mobile",
+	"resolution": "(1954.0, 900.0)"
+}

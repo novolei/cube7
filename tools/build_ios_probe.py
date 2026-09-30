@@ -21,7 +21,9 @@ REMOTE_SCRIPT = r'''#!/bin/sh
 set -eu
 ROOT="${1:?build root}"
 DEVICE="${2:?device UUID}"
-SHIP_APPLE_ENV="$ROOT/probe.env" sh "$ROOT/ios-ship.sh" --archive-only
+if [ "${3:-}" != --sign-only ]; then
+  SHIP_APPLE_ENV="$ROOT/probe.env" sh "$ROOT/ios-ship.sh" --archive-only
+fi
 # Paths and IDs only. The private key stays on the Mac.
 . "$HOME/mt-build/ship-apple-ios.env"
 sign() {
@@ -85,6 +87,8 @@ def main():
     }
     (out / 'probe.env').write_text(''.join(key + '=' + shlex.quote(value) + '\n' for key, value in env.items()), encoding='utf-8', newline='\n')
     (out / 'run.sh').write_text(REMOTE_SCRIPT, encoding='utf-8', newline='\n')
+    gui_command = '#!/bin/sh\nexec sh ' + shlex.quote(remote + '/run.sh') + ' ' + shlex.quote(remote) + ' ' + shlex.quote(args.device) + ' --sign-only\n'
+    (out / 'Cube7-iPhone-Test.command').write_text(gui_command, encoding='utf-8', newline='\n')
     (out / 'ios-ship.sh').write_text((args.ship_kit / 'apple/ios-ship.sh').read_text(encoding='utf-8'), encoding='utf-8', newline='\n')
     # Reuse the known development export options without printing signing secrets.
     subprocess.run(['scp', '-q', args.mac + ':mt-build/ExportOptions-development.plist', str(out / 'ExportOptions-development.plist')], check=True)

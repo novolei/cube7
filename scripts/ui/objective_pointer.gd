@@ -54,31 +54,27 @@ func _draw() -> void:
 	if not _show:
 		return
 	var col := UIKit.ACCENT2
-	var bob := sin(_t * 4.0) * 5.0
-	var font := UIKit.font(true)
+	var bob := 0.0 if bool(Settings.get_v("reduce_motion")) else sin(_t * 1.8) * 2.0
+	var font := UIKit.latin_font()
+	var ink := Color(0.04, 0.13, 0.14, 0.85)
 	var txt := "%d m" % int(_dist)
 	if _on_screen:
 		var p := _pos + Vector2(0, bob)
-		var s := 13.0
+		var s := 9.0
 		var dia := PackedVector2Array([p + Vector2(0, -s), p + Vector2(s * 0.75, 0), p + Vector2(0, s), p + Vector2(-s * 0.75, 0)])
-		draw_colored_polygon(dia, Color(0.1, 0.1, 0.3, 0.5))
-		var inner := PackedVector2Array()
-		for q in dia:
-			inner.append(p + (q - p) * 0.78)
-		draw_colored_polygon(inner, col)
-		draw_string_outline(font, p + Vector2(-28, 34), txt, HORIZONTAL_ALIGNMENT_CENTER, 56, 18, 6, Color(0.1, 0.1, 0.3, 0.8))
-		draw_string(font, p + Vector2(-28, 34), txt, HORIZONTAL_ALIGNMENT_CENTER, 56, 18, Color.WHITE)
+		dia.append(dia[0])
+		draw_polyline(dia, ink, 3.5, true)
+		draw_polyline(dia, col, 1.5, true)
+		draw_circle(p, 1.5, col)
+		draw_string_outline(font, p + Vector2(-28, 28), txt, HORIZONTAL_ALIGNMENT_CENTER, 56, 18, 2, ink)
+		draw_string(font, p + Vector2(-28, 28), txt, HORIZONTAL_ALIGNMENT_CENTER, 56, 18, UIKit.TEXT)
 	else:
 		var p := _pos + Vector2.from_angle(_angle) * bob
 		var dir := Vector2.from_angle(_angle)
 		var side := dir.orthogonal()
-		var tip := p + dir * 20.0
-		var tri := PackedVector2Array([tip, p - dir * 8.0 + side * 16.0, p - dir * 8.0 - side * 16.0])
-		draw_colored_polygon(tri, Color(0.1, 0.1, 0.3, 0.55))
-		var tri2 := PackedVector2Array()
-		for q in tri:
-			tri2.append(p + (q - p) * 0.78)
-		draw_colored_polygon(tri2, col)
-		var tp := p - dir * 36.0 + Vector2(-28, 6)
-		draw_string_outline(font, tp, txt, HORIZONTAL_ALIGNMENT_CENTER, 56, 17, 6, Color(0.1, 0.1, 0.3, 0.8))
-		draw_string(font, tp, txt, HORIZONTAL_ALIGNMENT_CENTER, 56, 17, Color.WHITE)
+		var chevron := PackedVector2Array([p - dir * 4.0 + side * 8.0, p + dir * 7.0, p - dir * 4.0 - side * 8.0])
+		draw_polyline(chevron, ink, 4.0, true)
+		draw_polyline(chevron, col, 2.0, true)
+		var tp := p - dir * 28.0 + Vector2(-28, 6)
+		draw_string_outline(font, tp, txt, HORIZONTAL_ALIGNMENT_CENTER, 56, 17, 2, ink)
+		draw_string(font, tp, txt, HORIZONTAL_ALIGNMENT_CENTER, 56, 17, UIKit.TEXT)

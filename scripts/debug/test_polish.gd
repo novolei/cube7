@@ -9,6 +9,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	Flow.mode = "debug"
 	_player = get_parent().player
+	GameState.camera.yaw = get_parent().level.call("spawn_yaw")
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--polish-out="):
 			_out = arg.trim_prefix("--polish-out=")
@@ -30,6 +31,7 @@ func action(name: String, pressed: bool) -> void:
 	event.action = name
 	event.pressed = pressed
 	Input.parse_input_event(event)
+	Input.flush_buffered_events() # Synthetic events can arrive between two physics steps at 30Hz.
 
 func tap(name: String) -> void:
 	action(name, true)
@@ -159,6 +161,7 @@ func _run() -> void:
 	_player.countersteer_strength = strength
 	_player.debug_input = Vector2.ZERO
 	check(speeds[1] < speeds[0] - 0.4, "Deliberate countersteering brakes actual rolling momentum")
+	await _pc_control_check()
 	for i in 6:
 		_player.apply_form(i % 3, true)
 		await get_tree().process_frame
@@ -176,6 +179,51 @@ func _run() -> void:
 	await _voxel_check()
 	print("POLISH CHECK: %d failures" % _fails.size())
 	get_tree().quit(0 if _fails.is_empty() else 1)
+
+func _pc_control_check() -> void:
+	var braking := _player.release_brake_strength
+	var releases: Array[float] = []
+	for strength in [0.0, braking]:
+		_player.release_brake_strength = strength
+		_player.teleport(Vector3(16, 70.8, 16))
+		await wait(0.4)
+		_player.linear_velocity = Vector3(5, 0, 0)
+		_player.angular_velocity = Vector3.ZERO
+		for i in 21:
+			await get_tree().physics_frame
+		releases.append(Vector2(_player.linear_velocity.x, _player.linear_velocity.z).length())
+	_player.release_brake_strength = braking
+	check(releases[1] < releases[0] - 0.5, "Releasing movement reduces actual ground overshoot")
+	_player.teleport(Vector3(16, 70.8, 16))
+	await wait(0.4)
+	_player.linear_velocity = Vector3(5, 0, 0)
+	_player._dash_t = 0.9
+	for i in 21:
+		await get_tree().physics_frame
+	check(_player.linear_velocity.x > releases[1] + 0.5, "A committed dash keeps its momentum on release")
+	_player._dash_t = 0.0
+	var analog: Array[float] = []
+	for strength in [0.25, 1.0]:
+		_player.debug_input = Vector2.ZERO
+		_player.teleport(Vector3(16, 70.8, 16))
+		await wait(0.4)
+		_player.debug_input = Vector2(0, -strength)
+		for i in 45:
+			await get_tree().physics_frame
+		analog.append(Vector2(_player.linear_velocity.x, _player.linear_velocity.z).length())
+	_player.debug_input = Vector2.ZERO
+	check(analog[0] < analog[1] * 0.75, "A quarter stick movement stays slower than a full movement")
+	_player._charging = true
+	_player._pounding = true
+	_player._dash_t = 0.5
+	_player.charged_ram = true
+	_player._jump_buffer = 0.1
+	_player._jump_rising = true
+	_player.respawn_at(Vector3(17, 70.8, 16), -1, false)
+	check(not _player._charging and not _player._pounding and not _player.charged_ram and _player._dash_t == 0.0 and _player._jump_buffer == 0.0 and not _player._jump_rising, "Respawn clears charged attacks and jump state")
+	await wait(0.06)
+	var camera: CameraRig = GameState.camera
+	check(camera._pivot.distance_to(_player.global_position + Vector3.UP * 0.6) < 0.5, "A short respawn immediately restores a steady camera")
 
 func touch(index: int, at: Vector2, pressed: bool) -> void:
 	var event := InputEventScreenTouch.new()
@@ -217,6 +265,27 @@ func _touch_check() -> void:
 	Input.emulate_mouse_from_touch = emulation
 
 func _voxel_check() -> void:
+	var cells := {Vector3i(-2, 0, 0): true, Vector3i(-1, 0, 0): true, Vector3i(1, 0, 0): true, Vector3i(1, 0, 1): true, Vector3i(2, 0, 1): true, Vector3i(1, 1, 1): true}
+	var covered := {}
+	var runs := VoxelChunk.collision_runs(cells)
+	for box in runs:
+		for x in range(int(box.position.x), int(box.end.x)):
+			covered[Vector3i(x, int(box.position.y), int(box.position.z))] = true
+	check(runs.size() == 4 and covered == cells and VoxelChunk.collision_runs({}).is_empty(), "Falling chunk collision merges adjacent cells without filling holes")
+	var falling := VoxelChunk.new()
+	for cell: Vector3i in cells:
+		falling.blocks.append([(Vector3(cell) + Vector3.ONE * 0.5) * VoxelWorld.CELL_M, Blocks.DIRT])
+	falling.freeze = true
+	get_parent().add_child(falling)
+	falling.global_position = Vector3(310, 20, 0)
+	falling.set_physics_process(false)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var space: PhysicsDirectSpaceState3D = (get_parent() as Node3D).get_world_3d().direct_space_state
+	var solid := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(310.75, 22, 0.25), Vector3(310.75, 19, 0.25), 32))
+	var hole := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(310.25, 22, 0.25), Vector3(310.25, 19, 0.25), 32))
+	check(solid.get("collider") == falling and hole.is_empty(), "Merged native collision remains solid on cells and open through a gap")
+	falling.queue_free()
 	var world := VoxelWorld.new()
 	world.render_group = 4 # Exercise phone-sized batches on the desktop too.
 	world.size = Vector3i(32, 16, 32)

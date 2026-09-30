@@ -46,14 +46,36 @@ func _ready() -> void:
 	mi.mesh = st.commit()
 	mi.material_override = _mat
 	add_child(mi)
-	var shape_box := BoxShape3D.new()
-	shape_box.size = Vector3.ONE * VoxelWorld.CELL_M * 0.96
-	for c in cells:
+	var widths := {}
+	for box in collision_runs(cells):
+		if not widths.has(box.size.x):
+			var shape_box := BoxShape3D.new()
+			shape_box.size = box.size * VoxelWorld.CELL_M - Vector3.ONE * VoxelWorld.CELL_M * 0.04
+			widths[box.size.x] = shape_box
 		var cs := CollisionShape3D.new()
-		cs.shape = shape_box
-		cs.position = (Vector3(c) + Vector3.ONE * 0.5) * VoxelWorld.CELL_M - spawn_origin
+		cs.shape = widths[box.size.x]
+		cs.position = box.get_center() * VoxelWorld.CELL_M - spawn_origin
 		add_child(cs)
 	mass = maxf(0.05 * blocks.size(), 0.5)
+
+# ponytail: merge occupied X rows, preserving gaps; add Y/Z merging if compound-shape cost remains dominant.
+static func collision_runs(cells: Dictionary) -> Array[AABB]:
+	var runs: Array[AABB] = []
+	if cells.is_empty():
+		return runs
+	var keys := cells.keys()
+	keys.sort_custom(func(a: Vector3i, b: Vector3i) -> bool: return a.z < b.z if a.z != b.z else (a.y < b.y if a.y != b.y else a.x < b.x))
+	var first: Vector3i = keys[0]
+	var last := first
+	for cell: Vector3i in keys.slice(1):
+		if cell.y == last.y and cell.z == last.z and cell.x == last.x + 1:
+			last = cell
+		else:
+			runs.append(AABB(Vector3(first), Vector3(last - first + Vector3i.ONE)))
+			first = cell
+			last = cell
+	runs.append(AABB(Vector3(first), Vector3(last - first + Vector3i.ONE)))
+	return runs
 
 func _face(st: SurfaceTool, c: Vector3, n: Vector3, h: float, col: Color) -> void:
 	var u := Vector3(n.y, n.z, n.x)

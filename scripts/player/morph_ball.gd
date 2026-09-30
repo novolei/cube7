@@ -73,6 +73,7 @@ var _jump_buffer := 0.0
 @export_range(0.05, 0.2) var coyote_time := 0.12
 @export_range(0.05, 0.2) var jump_buffer_time := 0.12
 @export_range(0.0, 8.0) var countersteer_strength := 4.0
+@export_range(0.0, 8.0) var release_brake_strength := 3.2
 var _roll_level := 0.0
 var _landing_speed := 0.0
 var _landing_cooldown := 0.0
@@ -257,6 +258,8 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 		state.angular_velocity = Vector3.ZERO
 		_prev_vel = Vector3.ZERO
 		reset_physics_interpolation.call_deferred()
+		if GameState.camera is CameraRig:
+			GameState.camera.reset_follow(state.transform.origin)
 		return
 	if _reset_rot:
 		_reset_rot = false
@@ -417,6 +420,14 @@ func _physics_process(delta: float) -> void:
 	var boosting := _boost_held()
 	var max_s: float = (f.boost_speed if boosting else f.max_speed) * Upgrades.speed_mult()
 	var mul := 1.6 if boosting else 1.0
+	var input_strength := minf(dir.length(), 1.0)
+	# Small stick movements are for positioning; release retains a short, controllable roll.
+	# Launches, airborne motion and committed attacks keep their authored momentum.
+	if form == BALL and grounded and not _jump_rising and _no_snap <= 0.0 and _dash_t <= 0.0 and not _charging and not boosting and not get_meta("riding", false):
+		var release := 1.0 - input_strength
+		var vh := Vector3(linear_velocity.x, 0, linear_velocity.z)
+		apply_central_force(-vh * mass * release_brake_strength * release)
+		angular_velocity *= exp(-release_brake_strength * release * delta)
 	if dir.length() > 0.05:
 		var vh := Vector3(linear_velocity.x, 0, linear_velocity.z)
 		var d := dir.normalized() * minf(dir.length(), 1.0)
@@ -425,7 +436,7 @@ func _physics_process(delta: float) -> void:
 			var reversal := maxf(-vh.normalized().dot(d), 0.0)
 			apply_central_force(-vh * mass * countersteer_strength * reversal)
 			angular_velocity *= exp(-6.0 * reversal * delta)
-		if vh.dot(d.normalized()) < max_s:
+		if vh.dot(d.normalized()) < max_s * input_strength:
 			if f.roll:
 				apply_torque(Vector3.UP.cross(d) * float(f.torque) * mass * mul)
 			var a: float = f.ground_force if _ground_timer > 0.0 else f.air_force
@@ -890,16 +901,31 @@ func _hardness_hint(at: Vector3, speed: float) -> void:
 
 ## 复活（由 GameState.respawn 调用）
 func respawn_at(pos: Vector3, form_idx: int, locks: bool) -> void:
-	_jump_buffer = 0.0
 	if _held:
 		_release_held(Vector3.ZERO)
+	apply_form(form_idx if form_idx >= 0 else form, false)
+	_dash_t = 0.0
+	charged_ram = false
+	ram_power = 0.0
+	_charge_t = 0.0
+	_charge_lvl = 0
+	_drilling_t = 0.0
+	_drill_timer = 0.0
+	_ability_cd = 0.15
+	_invuln = 0.65
 	teleport(pos)
-	if form_idx >= 0 and form_idx != form:
-		apply_form(form_idx, false)
 	form_locked = locks
 
 ## 瞬移（不放下手里的物件）
 func teleport(pos: Vector3) -> void:
+	grounded = false
+	_ground_timer = 0.0
+	_jump_buffer = 0.0
+	_jump_rising = false
+	_air_jumps = 0
+	_landing_speed = 0.0
+	_impacts.clear()
+	_no_snap = 0.0
 	_teleport_pos = pos
 	_teleport = true
 	if freeze:

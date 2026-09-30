@@ -76,6 +76,18 @@ func _target_pos() -> Vector3:
 	# 用插值后的变换，避免 60Hz 物理 vs 高刷屏幕的抖动
 	return _target.get_global_transform_interpolated().origin + Vector3.UP * 0.6
 
+## A respawn, even nearby, starts with a steady view instead of sweeping across the fall.
+func reset_follow(position: Vector3) -> void:
+	_pivot = position + Vector3.UP * 0.6
+	_lead = Vector3.ZERO
+	_lift = 0.0
+	_lift_target = 0.0
+	_lift_check = 0.0
+	_hide_timer = 0.0
+	_cur_pitch = clampf(-0.95 if model_view else pitch, -1.4, 0.35)
+	_cur_dist = model_distance if model_view else distance * float(Settings.get_v("cam_dist"))
+	_shake = 0.0
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var k := mouse_sensitivity * _sens()
@@ -106,10 +118,7 @@ func _process(delta: float) -> void:
 	if _target:
 		var at := _target_pos()
 		if _pivot.distance_squared_to(at) > 144.0:
-			_pivot = at
-			_lead = Vector3.ZERO
-			_lift = 0.0
-			_lift_target = 0.0
+			reset_follow(at - Vector3.UP * 0.6)
 		var lead_target := Vector3.ZERO
 		if _target is RigidBody3D and not model_view and not bool(Settings.get_v("reduce_motion")):
 			var velocity := (_target as RigidBody3D).linear_velocity
