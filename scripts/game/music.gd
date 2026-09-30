@@ -20,11 +20,25 @@ var _duck := 1.0
 var _duck_timer := 0.0
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_bus("Music", -4.0)
 	_ensure_bus("SFX", -2.0)
 	_ensure_bus("UI", -4.0)
 	_ensure_bus("Voice", -6.0)
+	_ensure_bus("Movement", -3.0)
+	_ensure_bus("World", -7.0)
 	AudioServer.set_bus_send(AudioServer.get_bus_index("Voice"), "SFX")
+	AudioServer.set_bus_send(AudioServer.get_bus_index("Movement"), "SFX")
+	AudioServer.set_bus_send(AudioServer.get_bus_index("World"), "SFX")
+	var limiter := AudioEffectHardLimiter.new()
+	limiter.ceiling_db = -1.0
+	AudioServer.add_bus_effect(0, limiter)
+	var compressor := AudioEffectCompressor.new()
+	compressor.threshold = -12.0
+	compressor.ratio = 2.5
+	compressor.attack_us = 1800.0
+	compressor.release_ms = 150.0
+	AudioServer.add_bus_effect(AudioServer.get_bus_index("World"), compressor)
 	for layer in LAYERS:
 		var p := AudioStreamPlayer.new()
 		p.bus = "Music"
@@ -94,8 +108,8 @@ func set_override(state: String) -> void:
 
 ## 播放音效大事件（解锁、过关）时，把音乐临时压低
 func duck(secs: float, amount := 0.25) -> void:
-	_duck = amount
-	_duck_timer = secs
+	_duck = minf(_duck, amount) if secs > 0.0 else amount
+	_duck_timer = maxf(_duck_timer, secs) if secs > 0.0 else 0.0
 
 func _process(delta: float) -> void:
 	var st: Dictionary = STATES.get(_override if _override != "" else default_state, STATES["explore"])
@@ -104,7 +118,7 @@ func _process(delta: float) -> void:
 	else:
 		_duck = move_toward(_duck, 1.0, delta * 0.8)
 	for layer in LAYERS:
-		var target: float = st[layer] * _duck
+		var target: float = st[layer] * _duck * (0.4 if get_tree().paused else 1.0)
 		_levels[layer] = move_toward(_levels[layer], target, delta * (2.5 if target < _levels[layer] else 0.6))
 		var p: AudioStreamPlayer = _players[layer]
 		p.volume_db = linear_to_db(maxf(_levels[layer], 0.0001))

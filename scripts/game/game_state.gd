@@ -166,7 +166,7 @@ func add_coins(n: int) -> void:
 	if not _upgrade_hint and coins >= 150 and not SaveGame.flag("hint_upgrade"):
 		_upgrade_hint = true
 		SaveGame.set_flag("hint_upgrade")
-		say("金币攒了不少！打开菜单里的「改装 PIX」，可以给你升级护盾、冲撞和速度。")
+		say("金币攒了不少！打开菜单里的「形态改装」，可以给你升级护盾、冲撞和速度。")
 
 func add_energy(n: int) -> void:
 	energy += n

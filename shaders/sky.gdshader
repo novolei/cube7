@@ -27,6 +27,7 @@ uniform float planet_alpha = 0.85;
 uniform vec3 moon_dir = vec3(0.62, 0.30, -0.55);
 uniform float moon_radius = 0.035;
 uniform float star_amount = 0.0;
+global uniform bool economy_render;
 
 float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -40,6 +41,7 @@ float noise2(vec2 p) {
 	return mix(mix(hash12(i), hash12(i + vec2(1, 0)), u.x), mix(hash12(i + vec2(0, 1)), hash12(i + vec2(1, 1)), u.x), u.y);
 }
 float fbm2(vec2 p) {
+	if (economy_render) return noise2(p);
 	float v = 0.0;
 	float a = 0.5;
 	for (int i = 0; i < 5; i++) {
@@ -79,7 +81,7 @@ void sky() {
 		if (star_amount > 0.001 && e > 0.0) {
 			vec2 sp = floor(d.xz / (d.y + 0.6) * 260.0);
 			float h = hash12(sp);
-			float star = step(0.9965, h) * (0.5 + 0.5 * sin(TIME * 2.0 + h * 90.0));
+			float star = step(0.9965, h) * (0.65 + 0.35 * sin(h * 90.0));
 			col += vec3(star) * star_amount * smoothstep(0.05, 0.4, e);
 		}
 		// ---- 巨型行星 + 光环
@@ -129,7 +131,7 @@ void sky() {
 		}
 		// ---- 高空卷云
 		if (e > 0.02) {
-			vec2 cp = d.xz / (e + 0.08) * 1.1 + vec2(TIME * 0.004, TIME * 0.002);
+			vec2 cp = d.xz / (e + 0.08) * 1.1;
 			float c = fbm2(cp * vec2(1.0, 2.6));
 			float cm = smoothstep(1.0 - cirrus_cover, 1.05 - cirrus_cover * 0.5, c) * smoothstep(0.02, 0.2, e);
 			col = mix(col, cloud_lit * (0.95 + 0.1 * sdot), cm * 0.45);
@@ -138,7 +140,7 @@ void sky() {
 		float az = atan(d.x, d.z);
 		float hprof = bank_noise(az, 3.2, 1.7) * 0.7 + bank_noise(az, 9.0, 5.1) * 0.3;
 		float top = bank_height * smoothstep(1.0 - bank_cover - 0.15, 1.0 - bank_cover + 0.35, hprof);
-		float puff = fbm2(vec2(az * 14.0, e * 38.0) + vec2(TIME * 0.01, 0.0));
+		float puff = fbm2(vec2(az * 14.0, e * 38.0));
 		float edge_y = top * (0.75 + 0.5 * puff);
 		if (e > -0.08 && e < edge_y) {
 			float h01 = clamp((e + 0.02) / max(edge_y + 0.02, 0.001), 0.0, 1.0);

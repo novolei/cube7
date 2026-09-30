@@ -15,6 +15,7 @@ uniform vec3 dirt_color : source_color = vec3(0.925, 0.604, 0.455);
 uniform float bevel_width = 0.08;
 uniform float bevel_dark = 0.08;
 uniform float round_strength = 0.3;
+global uniform bool economy_render;
 
 float hash13(vec3 p) {
 	p = fract(p * 0.1031);
@@ -37,6 +38,11 @@ void vertex() {
 	v_wnorm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	v_type = UV2.x * 255.0;
 	v_code = floor(UV2.y * 255.0 + 0.5);
+	if (economy_render) {
+		float patch = 0.5 + 0.25 * sin(v_wpos.x * 0.6) * sin(v_wpos.z * 0.4);
+		COLOR.rgb *= 0.96 + 0.08 * patch;
+		if (abs(v_type - 2.0) < 0.5) COLOR.rgb *= mix(vec3(1.0), vec3(1.10, 1.07, 0.86), patch);
+	}
 }
 
 float edge_bit(float code, float bit) {
@@ -69,6 +75,15 @@ void face_axes(vec3 n, out vec3 u, out vec3 v) {
 vec3 voxel_albedo(vec3 base, float light, vec2 uv) {
 	vec3 col = base;
 	float cat = voxel_category();
+	if (economy_render) {
+		// Broad matte colours retain the palette without per-pixel octave noise.
+		bool natural = v_type > 1.5 && v_type < 4.5 || v_type > 20.5 && v_type < 35.5;
+		if (!natural && cat > 0.5 && cat < 1.5) {
+			float edge = exposed_edge_dist(uv);
+			col *= 1.0 + 0.16 * (1.0 - smoothstep(0.02, 0.08, edge));
+		}
+		return col * light;
+	}
 	// 大尺度的柔和色彩起伏（不按格子走，所以平地看不出方格）
 	float n1 = vnoise(v_wpos * 0.35);
 	float n2 = vnoise(v_wpos * 1.3);
@@ -113,7 +128,7 @@ vec3 voxel_albedo(vec3 base, float light, vec2 uv) {
 	//   打不坏：更暗一点、边缘更硬朗
 	float ei = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
 	bool foliage = abs(v_type - 22.0) < 0.5 || v_type > 33.5 && v_type < 35.5 || abs(v_type - 43.0) < 0.5;
-	bool terrain = v_type > 1.5 && v_type < 4.5 || v_type > 23.5 && v_type < 27.5 || v_type > 30.5 && v_type < 33.5;
+	bool terrain = v_type > 1.5 && v_type < 4.5 || v_type > 23.5 && v_type < 27.5 || v_type > 31.5 && v_type < 33.5 || abs(v_type - 21.0) < 0.5 || abs(v_type - 30.0) < 0.5;
 	if (foliage) {
 		// 树叶：一簇一簇的明暗，不画箱板
 		col *= 0.82 + 0.3 * vnoise(v_wpos * 3.3) + 0.08 * n3;
@@ -170,9 +185,12 @@ vec3 voxel_round_normal(vec2 uv) {
 global uniform vec4 occl_target;   // xyz = PIX 位置，w = 1 启用
 float bayer4(vec2 p) {
 	ivec2 q = ivec2(mod(p, 4.0));
-	int i = q.x + q.y * 4;
-	int m[16] = int[](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
-	return (float(m[i]) + 0.5) / 16.0;
+	// Same Bayer matrix, without a dynamically indexed per-fragment array.
+	int x0 = q.x & 1;
+	int y0 = q.y & 1;
+	int x1 = (q.x >> 1) & 1;
+	int y1 = (q.y >> 1) & 1;
+	return (float(((x0 ^ y0) * 8) + y0 * 4 + ((x1 ^ y1) * 2) + y1) + 0.5) / 16.0;
 }
 bool occluder_cut(vec3 wpos, vec3 cam, vec2 fragcoord) {
 	if (occl_target.w < 0.5) return false;

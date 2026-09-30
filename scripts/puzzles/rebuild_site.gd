@@ -97,15 +97,22 @@ func _build_ghost() -> void:
 	bm.material = _ghost_mat
 	mm.mesh = bm
 	var list: Array = []
+	var occupied := {}
+	for b in blueprint:
+		occupied[b[0]] = true
 	for b in blueprint:
 		if world.get_block(b[0]) == Blocks.AIR or _vox_cells.has(b[0]):
-			list.append(b[0])
+			for direction in VoxelWorld.DIRS:
+				if not occupied.has(b[0] + direction):
+					list.append(b[0])
+					break
 	mm.instance_count = list.size()
 	for i in list.size():
 		mm.set_instance_transform(i, Transform3D(Basis(), world.voxel_center(list[i])))
 	_ghost = MultiMeshInstance3D.new()
 	_ghost.multimesh = mm
 	_ghost.top_level = true
+	_ghost.visible = false # Reveal only near an active player; keep title vistas quiet.
 	_ghost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ghost)
 	_ghost.global_transform = Transform3D.IDENTITY
@@ -121,16 +128,16 @@ func _build_pad() -> void:
 	_pad_mat = StandardMaterial3D.new()
 	_pad_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_pad_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_pad_mat.albedo_color = Color(0.4, 0.9, 1.0, 0.5)
+	_pad_mat.albedo_color = Color(0.74, 0.84, 0.66, 0.32)
 	_pad.material_override = _pad_mat
 	_pad.position.y = 0.04
 	add_child(_pad)
 	_label = Label3D.new()
-	_label.font = UIKit.font(true)
-	_label.font_size = 56
-	_label.outline_size = 12
-	_label.outline_modulate = Color("0b2a44")
-	_label.modulate = Color("c8f4ff")
+	_label.font = UIKit.font()
+	_label.font_size = 46
+	_label.outline_size = 4
+	_label.outline_modulate = Color("163335")
+	_label.modulate = UIKit.TEXT
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_label.pixel_size = 0.006
 	_label.position.y = 1.8
@@ -140,15 +147,15 @@ func _build_pad() -> void:
 func _refresh_label() -> void:
 	if _label:
 		_label.text = "重构 · %s\n◆ %d / %d" % [title, mini(GameState.matter, cost), cost]
-		_label.modulate = Color("9dffcf") if GameState.matter >= cost else Color("c8f4ff")
+		_label.modulate = UIKit.GOOD if GameState.matter >= cost else UIKit.TEXT
 
 func _process(delta: float) -> void:
 	if done:
 		return
-	_t += delta
+	if not bool(Settings.get_v("reduce_motion")):
+		_t += delta
 	_warn_t -= delta
-	_ghost_mat.set_shader_parameter("alpha", 0.2 + 0.08 * sin(_t * 2.2))
-	_pad_mat.albedo_color.a = 0.35 + 0.2 * sin(_t * 4.0)
+	_pad_mat.albedo_color.a = 0.30 + 0.045 * sin(_t * 1.5)
 	if GameState.matter != _shown_matter:
 		_shown_matter = GameState.matter
 		_refresh_label()
@@ -156,6 +163,10 @@ func _process(delta: float) -> void:
 	if p == null:
 		return
 	var d := p.global_position - global_position
+	var proximity := 1.0 - smoothstep(8.0, 22.0, d.length())
+	_ghost.visible = proximity > 0.02
+	_ghost_mat.set_shader_parameter("alpha", lerpf(0.018, 0.13, proximity) * (0.92 + 0.08 * sin(_t * 1.5)))
+	_label.visible = d.length() < 9.0
 	if not _told and d.length() < 8.0:
 		_told = true
 		GameState.say("地上那片发光的格子，是一座被毁掉的%s的蓝图。拆东西会攒下“重构物质”（左上角的小方块），够了就滚进光圈——把它重建起来！" % title)

@@ -2,9 +2,9 @@ class_name Hud
 extends CanvasLayer
 ## 游戏界面（统一风格见 UIKit）
 ##   左上：金币 / 能源条 / 护盾 / 记忆碎片
-##   右上：当前目标卡片
-##   下方中间：NOVA 对话（全息头像 + 名牌 + 打字机 + 语音拟声）
-##   左下：形态栏（未解锁显示锁）  右下：只显示当前有用的按键提示
+##   右上：当前目标，直接排在世界的留白里
+##   下方中间：NOVA 对话（雾色衬底 + 名牌 + 打字机 + 语音拟声）
+##   左下：已解锁的形态  右下：只显示当前有用的按键提示
 ##   中央：区域标题卡；右下角：自动保存提示
 
 var _root: Control
@@ -21,7 +21,6 @@ var _obj_text: Label
 var _nova: PanelContainer
 var _nova_text: RichTextLabel
 var _nova_name: Label
-var _portrait: Control
 var _forms_row: HBoxContainer
 var _form_badges: Array[PanelContainer] = []
 var _form_name: Label
@@ -35,6 +34,11 @@ var _last_char := 0
 var _pause: PauseMenu
 var _grab_hint := ""
 var _grab_t := 0.0
+var _stats_dirty := false
+var _stats_pop := false
+var _pending_combo := 0
+var _title_tween: Tween
+var _combo_tween: Tween
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -43,6 +47,8 @@ func _ready() -> void:
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
+	UIKit.edge_wash(_root)
+	UIKit.edge_wash(_root, true)
 	_build_stats()
 	_root.add_child(ObjectivePointer.new())
 	_build_objective()
@@ -51,10 +57,19 @@ func _ready() -> void:
 	_build_prompts()
 	_build_title_card()
 	_build_save_toast()
+	if OS.has_feature("mobile"):
+		var touch := TouchControls.new()
+		_root.add_child(touch)
+		_prompts.hide()
+		var forms := _forms_row.get_parent() as Control
+		forms.offset_top = -435
+		forms.offset_bottom = -330
+		get_viewport().size_changed.connect(_safe_area)
+		_safe_area.call_deferred()
 	GameState.level_cleared.connect(_show_clear)
 	_build_combo()
 	GameState.combo_changed.connect(_on_combo)
-	_challenge = UIKit.outline(UIKit.label("", 28, UIKit.ACCENT, true), 5)
+	_challenge = UIKit.outline(UIKit.label("", 22, UIKit.ACCENT), 2)
 	UIKit.place(_challenge, Vector4(0.5, 0, 0.5, 0), Vector4(-220, 26, 220, 70))
 	_challenge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_challenge.visible = false
@@ -66,13 +81,13 @@ func _ready() -> void:
 	GameState.combo_finished.connect(_on_combo_end)
 	_pause = PauseMenu.new()
 	add_child(_pause)
-	GameState.coins_changed.connect(func(_v: int) -> void: _refresh_stats(true))
-	GameState.energy_changed.connect(func(_v: int) -> void: _refresh_stats())
+	GameState.coins_changed.connect(func(_v: int) -> void: _queue_stats(true))
+	GameState.energy_changed.connect(func(_v: int) -> void: _queue_stats())
 	GameState.upgrades_changed.connect(_rebuild_shields)
 	GameState.matter_changed.connect(func(v: int) -> void: _matter.text = str(v))
-	GameState.shield_changed.connect(func(_v: int) -> void: _refresh_stats())
-	GameState.fragments_changed.connect(func(_v: int) -> void: _refresh_stats())
-	GameState.seeds_changed.connect(func(_v: int) -> void: _refresh_stats(true))
+	GameState.shield_changed.connect(func(_v: int) -> void: _queue_stats())
+	GameState.fragments_changed.connect(func(_v: int) -> void: _queue_stats())
+	GameState.seeds_changed.connect(func(_v: int) -> void: _queue_stats(true))
 	GameState.form_changed.connect(func(_i: int) -> void: _refresh_forms())
 	GameState.form_unlocked.connect(_on_form_unlocked)
 	GameState.device_changed.connect(func(_k: String) -> void: _refresh_prompts())
@@ -87,6 +102,17 @@ func _ready() -> void:
 
 # ================================================================ 连拆
 
+func _safe_area() -> void:
+	var safe := DisplayServer.get_display_safe_area()
+	var window := Vector2(DisplayServer.window_get_size())
+	if safe.size == Vector2i.ZERO or window.x <= 0 or window.y <= 0:
+		return
+	var ratio := get_viewport().get_visible_rect().size / window
+	_root.offset_left = maxf(0, safe.position.x) * ratio.x
+	_root.offset_top = maxf(0, safe.position.y) * ratio.y
+	_root.offset_right = -maxf(0, window.x - safe.end.x) * ratio.x
+	_root.offset_bottom = -maxf(0, window.y - safe.end.y) * ratio.y
+
 var _combo_box: VBoxContainer
 var _challenge: Label
 var _combo_num: Label
@@ -99,23 +125,27 @@ func _build_combo() -> void:
 	_combo_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_combo_box.modulate.a = 0.0
 	_root.add_child(_combo_box)
-	_combo_word = UIKit.outline(UIKit.label("连拆", 21, UIKit.ACCENT2, true), 4)
+	_combo_word = UIKit.outline(UIKit.display_label("连拆", 22, UIKit.ACCENT2), 2)
 	_combo_word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_combo_box.add_child(_combo_word)
-	_combo_num = UIKit.outline(UIKit.label("×0", 48, UIKit.TEXT, true), 4)
+	_combo_num = UIKit.outline(UIKit.latin_label("×0", 40), 2)
 	_combo_num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_combo_box.add_child(_combo_num)
 
 func _on_combo(n: int) -> void:
+	_pending_combo = n
+
+func _show_combo(n: int) -> void:
 	if n < 3:
 		return
+	if _combo_tween and _combo_tween.is_valid():
+		_combo_tween.kill()
+	_combo_word.text = "连拆"
 	_combo_box.modulate.a = 1.0
 	_combo_num.text = "×%d" % n
 	var hot := clampf(n / 40.0, 0.0, 1.0)
 	_combo_num.add_theme_color_override("font_color", UIKit.TEXT.lerp(UIKit.ACCENT2, hot))
-	_combo_num.pivot_offset = _combo_num.size * 0.5
-	_combo_num.scale = Vector2.ONE * (1.35 + hot * 0.3)
-	create_tween().tween_property(_combo_num, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	UIKit.pulse(_combo_num)
 	Sfx.play("coin", Vector3.INF, -16.0, 0.0, 1.0 + minf(n, 40) * 0.025)
 
 func _on_combo_end(n: int, bonus: int) -> void:
@@ -133,6 +163,7 @@ func _on_combo_end(n: int, bonus: int) -> void:
 		Sfx.play("success", Vector3.INF, -8.0, 0.0)
 	var tw := create_tween()
 	tw.tween_interval(1.2)
+	_combo_tween = tw
 	tw.tween_property(_combo_box, "modulate:a", 0.0, 0.4)
 	tw.tween_callback(func() -> void: _combo_word.text = "连拆")
 
@@ -148,7 +179,7 @@ func _show_clear() -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(dim)
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, UIKit.ACCENT2, 6, 36, 1))
+	p.add_theme_stylebox_override("panel", UIKit.paper(36))
 	UIKit.place(p, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-380, -240, 380, 240))
 	_root.add_child(p)
 	var v := VBoxContainer.new()
@@ -158,7 +189,7 @@ func _show_clear() -> void:
 	var small := UIKit.label("%s  ·  %s" % [info.num, info.title], 20, UIKit.ACCENT, true)
 	small.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(small)
-	var big := UIKit.label("重构塔 %d / 5 点亮" % int(info.tower), 48, UIKit.TEXT, true)
+	var big := UIKit.display_label("重构塔 %d / 5 点亮" % int(info.tower), 48)
 	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(big)
 	SaveGame.write()
@@ -215,31 +246,26 @@ func _show_clear() -> void:
 	btns.add_child(home)
 	if not has_next:
 		home.grab_focus.call_deferred()
-	p.pivot_offset = Vector2(380, 240)
-	p.scale = Vector2(0.9, 0.9)
-	p.modulate.a = 0.0
-	var tw := create_tween().set_parallel()
-	tw.tween_property(p, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(p, "modulate:a", 1.0, 0.25)
+	UIKit.reveal(p)
 
 # ================================================================ 构建
 
 func _build_stats() -> void:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG, UIKit.LINE, 6, 14))
-	UIKit.place(p, Vector4(0, 0, 0, 0), Vector4(24, 22, 340, 22))
+	p.add_theme_stylebox_override("panel", UIKit.panel(Color.TRANSPARENT, Color.TRANSPARENT, 0, 0, 0))
+	UIKit.place(p, Vector4(0, 0, 0, 0), Vector4(38, 32, 310, 32))
 	_root.add_child(p)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	p.add_child(v)
 	var coin_row := HBoxContainer.new()
 	coin_row.add_theme_constant_override("separation", 10)
-	coin_row.add_child(UIIcon.make("coin", UIKit.ACCENT2, 30))
-	_coins = UIKit.label("0", 28, UIKit.TEXT, true)
+	coin_row.add_child(UIIcon.make("coin", UIKit.ACCENT2, 24))
+	_coins = UIKit.outline(UIKit.label("0", 24), 2)
 	coin_row.add_child(_coins)
 	coin_row.add_child(UIKit.make_spacer(10))
-	coin_row.add_child(UIIcon.make("matter", UIKit.ACCENT, 26))
-	_matter = UIKit.label("0", 26, UIKit.TEXT, true)
+	coin_row.add_child(UIIcon.make("matter", UIKit.ACCENT, 22))
+	_matter = UIKit.outline(UIKit.label("0", 22), 2)
 	coin_row.add_child(_matter)
 	v.add_child(coin_row)
 	var e_row := HBoxContainer.new()
@@ -248,7 +274,7 @@ func _build_stats() -> void:
 	_energy_bar = ProgressBar.new()
 	_energy_bar.show_percentage = false
 	_energy_bar.max_value = GameState.energy_per_shield
-	_energy_bar.custom_minimum_size = Vector2(150, 10)
+	_energy_bar.custom_minimum_size = Vector2(110, 3)
 	_energy_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var bg := UIKit.panel(Color(UIKit.ACCENT, 0.16), Color.TRANSPARENT, 5, 0)
 	var fg := UIKit.panel(UIKit.ACCENT, Color(0, 0, 0, 0), 5, 0)
@@ -263,11 +289,11 @@ func _build_stats() -> void:
 	_frag_row = HBoxContainer.new()
 	_frag_row.add_theme_constant_override("separation", 10)
 	_frag_row.add_child(UIIcon.make("fragment", UIKit.ACCENT2, 22))
-	_frag = UIKit.label("0 / 3", 19, UIKit.TEXT, true)
+	_frag = UIKit.outline(UIKit.label("0 / 3", 18), 2)
 	_frag_row.add_child(_frag)
 	_frag_row.add_child(UIKit.make_spacer(8))
 	_frag_row.add_child(UIIcon.make("pupu", UIKit.GOOD, 22))
-	_seeds = UIKit.label("0 / 3", 19, UIKit.TEXT, true)
+	_seeds = UIKit.outline(UIKit.label("0 / 3", 18), 2)
 	_frag_row.add_child(_seeds)
 	v.add_child(_frag_row)
 
@@ -276,7 +302,7 @@ func _rebuild_shields() -> void:
 		sh.queue_free()
 	_shields.clear()
 	for i in GameState.max_shield:
-		var sh := UIIcon.make("shield", UIKit.GOOD, 20)
+		var sh := UIIcon.make("shield", UIKit.GOOD, 16)
 		_shields.append(sh)
 		_shield_row.add_child(sh)
 	if _energy_bar:
@@ -286,10 +312,11 @@ func _rebuild_shields() -> void:
 
 func _build_objective() -> void:
 	_obj_card = PanelContainer.new()
-	var st := UIKit.panel(UIKit.BG, UIKit.ACCENT2, 6, 16, 0)
-	st.border_width_left = 2
+	var st := UIKit.panel(Color.TRANSPARENT, Color(UIKit.ACCENT2, 0.65), 0, 12, 0)
+	st.border_width_top = 1
+	st.shadow_size = 0
 	_obj_card.add_theme_stylebox_override("panel", st)
-	UIKit.place(_obj_card, Vector4(1, 0, 1, 0), Vector4(-470, 22, -24, 22))
+	UIKit.place(_obj_card, Vector4(1, 0, 1, 0), Vector4(-420, 32, -38, 32))
 	_obj_card.visible = false
 	_root.add_child(_obj_card)
 	var v := VBoxContainer.new()
@@ -298,28 +325,25 @@ func _build_objective() -> void:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
 	h.add_child(UIIcon.make("objective", UIKit.ACCENT2, 18))
-	h.add_child(UIKit.label("目标", 16, UIKit.ACCENT2, true))
+	h.add_child(UIKit.outline(UIKit.label("此行", 16, UIKit.ACCENT2), 2))
 	v.add_child(h)
-	_obj_text = UIKit.label("", 22, UIKit.TEXT, true)
+	_obj_text = UIKit.outline(UIKit.label("", 22), 2)
 	_obj_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_obj_text)
 
 func _build_nova() -> void:
 	_nova = PanelContainer.new()
-	_nova.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, Color(UIKit.ACCENT, 0.64), 6, 16, 1))
-	UIKit.place(_nova, Vector4(0.5, 1, 0.5, 1), Vector4(-400, -196, 400, -196))
+	_nova.add_theme_stylebox_override("panel", UIKit.paper(22))
+	UIKit.place(_nova, Vector4(0.5, 1, 0.5, 1), Vector4(-330, -202, 330, -202))
 	_nova.visible = false
 	_root.add_child(_nova)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 16)
 	_nova.add_child(h)
-	_portrait = NovaPortrait.new()
-	_portrait.custom_minimum_size = Vector2(58, 58)
-	h.add_child(_portrait)
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(v)
-	_nova_name = UIKit.label("NOVA · 站点 AI", 15, UIKit.ACCENT, true)
+	_nova_name = UIKit.latin_label("N O V A", 15, UIKit.ACCENT2)
 	v.add_child(_nova_name)
 	# 富文本：台词里的按键直接显示成手柄 / 键盘图标
 	_nova_text = RichTextLabel.new()
@@ -330,7 +354,7 @@ func _build_nova() -> void:
 	_nova_text.add_theme_font_override("normal_font", UIKit.font())
 	_nova_text.add_theme_font_size_override("normal_font_size", 21)
 	_nova_text.add_theme_color_override("default_color", UIKit.TEXT)
-	_nova_text.custom_minimum_size = Vector2(540, 0)
+	_nova_text.custom_minimum_size = Vector2(560, 0)
 	_nova_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_nova_text)
 
@@ -340,7 +364,7 @@ func _build_forms() -> void:
 	UIKit.place(v, Vector4(0, 1, 0, 1), Vector4(28, -150, 520, -28))
 	v.alignment = BoxContainer.ALIGNMENT_END
 	_root.add_child(v)
-	_form_name = UIKit.outline(UIKit.label("", 22, UIKit.TEXT, true), 4)
+	_form_name = UIKit.outline(UIKit.display_label("", 26), 2)
 	v.add_child(_form_name)
 	_forms_row = HBoxContainer.new()
 	_forms_row.add_theme_constant_override("separation", 10)
@@ -384,13 +408,14 @@ func _build_save_toast() -> void:
 
 # ================================================================ 刷新
 
+func _queue_stats(pop := false) -> void:
+	_stats_dirty = true
+	_stats_pop = _stats_pop or pop
+
 func _refresh_stats(pop := false) -> void:
 	_coins.text = str(GameState.coins)
 	if pop:
-		_coins.pivot_offset = _coins.size * 0.5
-		var tw := create_tween()
-		_coins.scale = Vector2(1.25, 1.25)
-		tw.tween_property(_coins, "scale", Vector2.ONE, 0.18)
+		UIKit.pulse(_coins)
 	_energy_bar.value = GameState.energy if GameState.shield < GameState.max_shield else GameState.energy_per_shield
 	for i in _shields.size():
 		_shields[i].filled = i < GameState.shield
@@ -410,9 +435,9 @@ func _refresh_forms() -> void:
 		if unlocked:
 			unlocked_count += 1
 		var active := i == cur
-		pc.visible = unlocked or i <= 2
+		pc.visible = unlocked
 		var ink: Color = UIKit.TEXT if active else UIKit.ACCENT
-		var st := UIKit.panel(UIKit.BG_SOLID if active else UIKit.BG, UIKit.ACCENT2 if active else UIKit.LINE, 2, 4, 1)
+		var st := UIKit.panel(Color.TRANSPARENT, UIKit.ACCENT2 if active else Color(UIKit.LINE, 0.3), 0, 4, 0)
 		st.border_width_bottom = 2 if active else 1
 		st.shadow_size = 0
 		pc.add_theme_stylebox_override("panel", st)
@@ -454,11 +479,7 @@ func _refresh_prompts() -> void:
 func _on_form_unlocked(i: int) -> void:
 	_refresh_forms()
 	var pc := _form_badges[i]
-	pc.pivot_offset = pc.size * 0.5
-	var tw := create_tween()
-	for k in 3:
-		tw.tween_property(pc, "scale", Vector2.ONE * 1.35, 0.12)
-		tw.tween_property(pc, "scale", Vector2.ONE, 0.12)
+	UIKit.pulse(pc, 1.08)
 	show_area_title("新形态", MorphBall.FORMS[i].name, MorphBall.FORMS[i].ability)
 
 func _on_objective(_i: int, text: String, _pos: Vector3) -> void:
@@ -479,11 +500,13 @@ func _on_saved() -> void:
 
 ## 屏幕中央的大标题（进入区域、解锁形态）
 func show_area_title(small: String, big: String, sub := "") -> void:
+	if _title_tween and _title_tween.is_valid():
+		_title_tween.kill()
 	for c in _title_card.get_children():
 		c.queue_free()
 	var a := UIKit.outline(UIKit.label(small, 24, UIKit.ACCENT2, true), 4)
 	a.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var b := UIKit.outline(UIKit.label(big, 64, UIKit.TEXT, true), 5)
+	var b := UIKit.outline(UIKit.display_label(big, 64), 3)
 	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title_card.add_child(a)
 	_title_card.add_child(b)
@@ -493,6 +516,7 @@ func show_area_title(small: String, big: String, sub := "") -> void:
 		_title_card.add_child(c)
 	var tw := create_tween()
 	_title_card.scale = Vector2(0.98, 0.98)
+	_title_tween = tw
 	_title_card.pivot_offset = _title_card.size * 0.5
 	tw.tween_property(_title_card, "modulate:a", 1.0, 0.5)
 	tw.parallel().tween_property(_title_card, "scale", Vector2.ONE, 0.25 if bool(Settings.get_v("reduce_motion")) else 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -515,6 +539,15 @@ func _fmt_rich(t: String) -> String:
 var _prompt_idle := 0.0
 
 func _process(delta: float) -> void:
+	if get_tree().paused:
+		return
+	if _stats_dirty:
+		_refresh_stats(_stats_pop)
+		_stats_dirty = false
+		_stats_pop = false
+	if _pending_combo > 0:
+		_show_combo(_pending_combo)
+		_pending_combo = 0
 	# 右下角按键提示：一段时间没变化就淡出，别一直挡着画面（换形态、能抓东西时再亮出来）
 	_prompt_idle += delta
 	if _prompts:
@@ -562,7 +595,6 @@ func _process(delta: float) -> void:
 			if ch.strip_edges() != "" and not ch in "，。！？、…—「」【】":
 				Sfx.play("voice_nova", Vector3.INF, -12.0, 0.18)
 		_last_char = n
-		(_portrait as NovaPortrait).talking = n < plain.length()
 		if _nova_time <= 0.0:
 			var tw := create_tween()
 			tw.tween_property(_nova, "modulate:a", 0.0, 0.25)

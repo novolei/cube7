@@ -30,15 +30,17 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	custom_minimum_size = Vector2(0, 42)
-	_st_normal = UIKit.panel(Color(1, 1, 1, 0.04), Color.TRANSPARENT, 4, 10, 0)
-	_st_focus = UIKit.panel(Color(UIKit.ACCENT2, 0.12), UIKit.ACCENT2, 4, 10, 1)
+	_st_normal = UIKit.panel(Color.TRANSPARENT, Color(UIKit.LINE, 0.14), 0, 10, 0)
+	_st_focus = UIKit.panel(Color(UIKit.ACCENT2, 0.03), Color(UIKit.ACCENT2, 0.7), 0, 10, 0)
+	_st_focus.border_width_left = 2
+	_st_focus.shadow_size = 0
 	_st_normal.shadow_size = 0
 	add_theme_stylebox_override("panel", _st_normal)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 14)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(h)
-	_label = UIKit.label(title, 22, UIKit.TEXT, true)
+	_label = UIKit.label(title, 22, UIKit.TEXT)
 	_label.custom_minimum_size.x = 190
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(_label)
@@ -49,7 +51,7 @@ func _ready() -> void:
 		_bar_bg = Panel.new()
 		_bar_bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_bar_bg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		_bar_bg.custom_minimum_size = Vector2(0, 14)
+		_bar_bg.custom_minimum_size = Vector2(0, 4)
 		_bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var bgs := UIKit.panel(Color(UIKit.ACCENT, 0.16), Color.TRANSPARENT, 4, 0)
 		bgs.shadow_size = 0
@@ -98,7 +100,7 @@ func refresh() -> void:
 	var k := clampf((v - lo) / (hi - lo), 0.0, 1.0)
 	if _bar_bg.size.x > 0.0:
 		_bar_fill.position = Vector2.ZERO
-		_bar_fill.size = Vector2(maxf(14.0, _bar_bg.size.x * k), _bar_bg.size.y)
+		_bar_fill.size = Vector2(_bar_bg.size.x * k, _bar_bg.size.y)
 	_value.text = ("%.2f×" % v) if hi > 1.0 else ("%d%%" % roundi(v * 100))
 
 func _nudge(dir: int) -> void:

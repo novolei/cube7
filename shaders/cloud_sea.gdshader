@@ -12,6 +12,7 @@ uniform float scale = 0.018;
 uniform float fade_start = 120.0;
 uniform float fade_end = 900.0;
 varying vec3 wpos;
+global uniform bool economy_render;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -31,6 +32,13 @@ float field(vec2 p) {
 void vertex() { wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
 void fragment() {
 	vec2 p = wpos.xz * scale;
+	if (economy_render) {
+		// One coherent cloud field, rather than three domain-warped FBM evaluations.
+		float h = noise(p * 0.7 + vec2(TIME * 0.006, 0.0));
+		vec3 col = mix(shadow_color, cloud_color, smoothstep(0.18, 0.78, h));
+		float dist = length(wpos.xz - CAMERA_POSITION_WORLD.xz);
+		ALBEDO = mix(col, horizon_color, smoothstep(fade_start, fade_end, dist));
+	} else {
 	float h = field(p);
 	float e = 0.06;
 	float hx = field(p + vec2(e, 0.0));
@@ -45,4 +53,5 @@ void fragment() {
 	float dist = length(wpos.xz - CAMERA_POSITION_WORLD.xz);
 	col = mix(col, horizon_color, smoothstep(fade_start, fade_end, dist));
 	ALBEDO = col;
+	}
 }

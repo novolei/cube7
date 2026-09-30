@@ -172,10 +172,17 @@ common/physics_interpolation=true
 
 [rendering]
 
+renderer/rendering_method.mobile="mobile"
+textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/msaa_3d.mobile=0
 
 [shader_globals]
 
+economy_render={
+"type": "bool",
+"value": false
+}
 occl_target={
 "type": "vec4",
 "value": Vector4(0, 0, 0, 0)

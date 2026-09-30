@@ -15,6 +15,7 @@ class Fly:
 	var phase := 0.0
 	var speed := 1.0
 	var radius := 1.5
+	var offset := Vector3.ZERO
 
 var _flies: Array = []
 var _t := 0.0
@@ -51,9 +52,18 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	var player := GameState.player as Node3D
+	var player_at := to_local(player.global_position) if is_instance_valid(player) else Vector3.INF
 	for f in _flies:
 		var a: float = _t * f.speed + f.phase
 		var p: Vector3 = f.home + Vector3(cos(a) * f.radius, sin(a * 2.3) * 0.35 + sin(a * 0.7) * 0.3, sin(a * 1.3) * f.radius)
+		var away := p - player_at
+		var wish := Vector3.ZERO
+		if away.length_squared() < 6.25:
+			var near := 1.0 - smoothstep(0.5, 2.5, away.length())
+			wish = away.normalized() * near * 0.8 + Vector3.UP * near * 0.5
+		f.offset = f.offset.lerp(wish, 1.0 - exp(-3.0 * delta))
+		p += f.offset
 		var nxt: Vector3 = f.home + Vector3(cos(a + 0.1) * f.radius, 0, sin((a + 0.1) * 1.3) * f.radius)
 		f.node.position = p
 		var d: Vector3 = nxt - Vector3(p.x, f.home.y, p.z)

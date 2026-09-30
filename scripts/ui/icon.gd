@@ -16,7 +16,7 @@ static func make(k: String, c: Color, s := 26.0) -> UIIcon:
 	return i
 
 func _process(delta: float) -> void:
-	if kind == "save" or kind == "objective":
+	if is_visible_in_tree() and not bool(Settings.get_v("reduce_motion")) and (kind == "save" or kind == "objective"):
 		t += delta
 		queue_redraw()
 
@@ -26,22 +26,21 @@ func _draw() -> void:
 	var r := s * 0.45
 	match kind:
 		"coin":
-			draw_circle(c, r, color.darkened(0.25))
-			draw_circle(c + Vector2(-1, -1), r * 0.82, color)
-			draw_rect(Rect2(c - Vector2(r * 0.12, r * 0.45), Vector2(r * 0.24, r * 0.9)), color.darkened(0.35))
+			draw_arc(c, r * 0.85, 0, TAU, 32, color, 1.4, true)
+			draw_line(c + Vector2(0, -r * 0.4), c + Vector2(0, r * 0.4), color, 1.4, true)
 		"energy":
 			var pts := PackedVector2Array([c + Vector2(r * 0.15, -r), c + Vector2(-r * 0.55, r * 0.1), c + Vector2(-r * 0.02, r * 0.1),
 				c + Vector2(-r * 0.2, r), c + Vector2(r * 0.6, -r * 0.15), c + Vector2(r * 0.05, -r * 0.15)])
 			draw_colored_polygon(pts, color)
 		"shield":
 			var hex := PackedVector2Array()
-			for k in 6:
-				var a := PI / 6.0 + k * PI / 3.0
+			for k in 4:
+				var a := -PI / 2.0 + k * PI / 2.0
 				hex.append(c + Vector2(cos(a), sin(a)) * r)
 			if filled:
-				draw_colored_polygon(hex, color)
+				draw_colored_polygon(hex, Color(color, 0.72))
 			hex.append(hex[0])
-			draw_polyline(hex, color.lightened(0.3) if filled else Color(color, 0.5), 2.0, true)
+			draw_polyline(hex, color if filled else Color(color, 0.45), 1.0, true)
 		"matter":
 			# 小体素块（等轴测的立方体）
 			var top := PackedVector2Array([c + Vector2(0, -r), c + Vector2(r * 0.87, -r * 0.5), c + Vector2(0, 0), c + Vector2(-r * 0.87, -r * 0.5)])

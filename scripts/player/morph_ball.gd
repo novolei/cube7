@@ -70,6 +70,13 @@ const WAVE_RADIUS := 3.6
 
 var _ground_timer := 0.0
 var _jump_buffer := 0.0
+@export_range(0.05, 0.2) var coyote_time := 0.12
+@export_range(0.05, 0.2) var jump_buffer_time := 0.12
+@export_range(0.0, 8.0) var countersteer_strength := 4.0
+var _roll_level := 0.0
+var _landing_speed := 0.0
+var _landing_cooldown := 0.0
+var _form_tween: Tween
 var _prev_vel := Vector3.ZERO
 var _impacts: Array = []
 var _ability_cd := 0.0
@@ -116,7 +123,7 @@ func _ready() -> void:
 	if rs:
 		rs.loop = true
 		_roll_sound.stream = rs
-		_roll_sound.bus = "SFX"
+		_roll_sound.bus = "Movement"
 		_roll_sound.volume_db = -80.0
 		add_child(_roll_sound)
 		_roll_sound.play()
@@ -197,6 +204,9 @@ func request_form(i: int) -> void:
 	apply_form(i, true)
 
 func apply_form(i: int, fx: bool) -> void:
+	if _form_tween and _form_tween.is_valid():
+		_form_tween.kill()
+	_visual_root.scale = Vector3.ONE * BODY
 	var f: Dictionary = FORMS[i]
 	form = i
 	mass = f.mass
@@ -225,10 +235,12 @@ func apply_form(i: int, fx: bool) -> void:
 		_charge_node.visible = false
 	attack = ""
 	if fx:
-		_visual_root.scale = Vector3.ONE * 0.45
-		var tw := create_tween()
-		tw.tween_property(_visual_root, "scale", Vector3.ONE * BODY, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		_burst(f.color)
+		if not bool(Settings.get_v("reduce_motion")):
+			_visual_root.scale = Vector3.ONE * BODY * 0.82
+			_form_tween = create_tween()
+			_form_tween.tween_property(_visual_root, "scale", Vector3.ONE * BODY, 0.26).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			_burst(f.color)
+		GameState.rumble(0.16, 0.06, 0.07)
 		Sfx.play("morph", Vector3.INF, -4.0)
 		Sfx.play("pix_morph", Vector3.INF, -9.0, 0.12)
 	GameState.form_changed.emit(i)
@@ -272,8 +284,10 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 		if state.linear_velocity.y > _prev_vel.y + 0.5 and not _jumped_now:
 			state.linear_velocity.y = _prev_vel.y
 	_jumped_now = false
-	if on_ground:
-		_ground_timer = 0.12
+	if on_ground and not _jump_rising:
+		_ground_timer = coyote_time
+	if on_ground and not grounded and _prev_vel.y < -2.0:
+		_landing_speed = -_prev_vel.y
 	grounded = on_ground
 	_prev_vel = state.linear_velocity
 
@@ -371,6 +385,17 @@ func _pop_free() -> void:
 	GameState.respawn()
 
 func _physics_process(delta: float) -> void:
+	_landing_cooldown = maxf(_landing_cooldown - delta, 0.0)
+	if _landing_speed > 0.0:
+		if _landing_cooldown <= 0.0 and not _pounding and world:
+			var below := global_position - Vector3.UP * (float(FORMS[form].radius) * BODY + 0.18)
+			var material_type := world.vget(world.to_v(below))
+			var soft := material_type in [Blocks.GRASS, Blocks.DIRT, Blocks.LEAVES] or Blocks.soft[material_type] == 1
+			Sfx.play("land_soft" if soft else "land_stone", global_position, lerpf(-18.0, -5.0, clampf((_landing_speed - 2.0) / 9.0, 0.0, 1.0)), 0.04)
+			var weight := clampf((_landing_speed - 2.0) / 12.0, 0.0, 1.0)
+			GameState.rumble(weight * 0.16, weight * 0.22, 0.06)
+			_landing_cooldown = 0.18
+		_landing_speed = 0.0
 	_ground_timer -= delta
 	_ability_cd -= delta
 	if not _impacts.is_empty():
@@ -395,28 +420,34 @@ func _physics_process(delta: float) -> void:
 	if dir.length() > 0.05:
 		var vh := Vector3(linear_velocity.x, 0, linear_velocity.z)
 		var d := dir.normalized() * minf(dir.length(), 1.0)
+		# Deliberate reversal brakes rolling inertia without weakening a launched dash.
+		if form == BALL and grounded and _dash_t <= 0.0 and not _charging and vh.length_squared() > 0.25:
+			var reversal := maxf(-vh.normalized().dot(d), 0.0)
+			apply_central_force(-vh * mass * countersteer_strength * reversal)
+			angular_velocity *= exp(-6.0 * reversal * delta)
 		if vh.dot(d.normalized()) < max_s:
 			if f.roll:
 				apply_torque(Vector3.UP.cross(d) * float(f.torque) * mass * mul)
 			var a: float = f.ground_force if _ground_timer > 0.0 else f.air_force
 			apply_central_force(d * a * mass * mul)
 
+	if _ground_timer > 0.0:
+		_puffs = 0
+		_air_jumps = int(f.air_jumps) + (Upgrades.level("bubble") if form == BUBBLE else 0)
 	_update_jump(delta, f)
 	_update_attack_state(delta)
 	_step_assist(dir, delta)
 	_unstick(delta, dir)
 
-	if _ground_timer > 0.0:
-		_puffs = 0
-		_air_jumps = int(f.air_jumps) + (Upgrades.level("bubble") if form == BUBBLE else 0)
 	_no_snap -= delta
 	_snap_to_ground()
 	# 滚动声：贴地时随速度变大、变尖
 	if _roll_sound and _roll_sound.stream:
-		var sp := linear_velocity.length() if _ground_timer > 0.0 and not lock_rotation else 0.0
+		var sp := Vector2(linear_velocity.x, linear_velocity.z).length() if grounded and not _jump_rising and form == BALL else 0.0
 		var vol := clampf(sp / 9.0, 0.0, 1.0)
-		_roll_sound.volume_db = linear_to_db(maxf(vol * 0.35, 0.0001))
-		_roll_sound.pitch_scale = 0.7 + vol * 0.7
+		_roll_level = lerpf(_roll_level, vol, 1.0 - exp(-12.0 * delta))
+		_roll_sound.volume_db = linear_to_db(maxf(_roll_level * 0.28, 0.0001))
+		_roll_sound.pitch_scale = lerpf(_roll_sound.pitch_scale, 0.8 + vol * 0.45, 1.0 - exp(-8.0 * delta))
 
 	# 抓着的物件跟随头顶
 	if _held and is_instance_valid(_held):
@@ -462,7 +493,7 @@ func _update_jump(delta: float, f: Dictionary) -> void:
 	var pressed := _jump_pressed()
 	var held := _jump_held()
 	if pressed:
-		_jump_buffer = 0.12
+		_jump_buffer = jump_buffer_time
 	else:
 		_jump_buffer = maxf(_jump_buffer - delta, 0.0)
 	if _jump_buffer > 0.0:
@@ -496,6 +527,7 @@ func _do_jump(v: float) -> void:
 	_jump_rising = true
 	_no_snap = 0.25
 	linear_velocity.y = v
+	GameState.rumble(0.10, 0.02, 0.05)
 
 ## 攻击判定窗口：冲撞持续 0.35 秒；滚得够快本身也算冲撞
 func _update_attack_state(delta: float) -> void:

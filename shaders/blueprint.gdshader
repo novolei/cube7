@@ -1,8 +1,8 @@
 shader_type spatial;
 // 重构蓝图：只画方块的发光棱线 + 很淡的面，不再一层层叠加成一团白光
-render_mode unshaded, blend_add, cull_back, depth_draw_never, shadows_disabled;
+render_mode unshaded, blend_mix, cull_back, depth_draw_never, shadows_disabled;
 
-uniform vec4 tint : source_color = vec4(0.3, 0.85, 1.0, 1.0);
+uniform vec4 tint : source_color = vec4(0.68, 0.82, 0.74, 1.0);
 uniform float alpha = 0.24;
 
 void fragment() {
@@ -13,5 +13,5 @@ void fragment() {
 	float d = length(VERTEX);
 	float near_fade = smoothstep(0.8, 3.5, d);       // 贴着镜头的蓝图淡掉
 	ALBEDO = tint.rgb;
-	ALPHA = clamp(alpha * (0.1 + line * 1.8) * near_fade, 0.0, 1.0);
+	ALPHA = clamp(alpha * (0.05 + line) * near_fade, 0.0, 1.0);
 }

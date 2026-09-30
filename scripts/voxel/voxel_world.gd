@@ -18,6 +18,8 @@ const VOXEL := 0.25         ## 1 体素 = 0.25 米
 const CELL := 2             ## 1 格 = 2 体素 = 0.5 米（关卡搭建单位）
 const CELL_M := VOXEL * CELL
 const GROUP := 2            ## 每个渲染节点合并 GROUP³ 个小区块
+# ponytail: 4m batches; 8m reduced draws but stalled mobile collision rebuilds in the destruction probe.
+var render_group := GROUP
 const CHUNK := 8            ## 小区块：破坏时只需重建很小的一块，避免卡顿
 const FALL_STEP := 0.025    ## 砂块下落一个体素的间隔（秒）
 
@@ -96,6 +98,8 @@ func _ready() -> void:
 
 func _shader_mat(path: String) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
+	if OS.has_feature("mobile") and path == "res://shaders/voxel_opaque.gdshader":
+		path = "res://shaders/voxel_opaque_mobile.gdshader"
 	m.shader = load(path)
 	return m
 
@@ -714,12 +718,17 @@ func break_sphere(center: Vector3, radius: float, tool: String, power: float, di
 	var count := 0
 	var broken: Array[Vector3i] = []
 	var d := dir.normalized() if dir.length() > 0.01 else Vector3.ZERO
-	for z in range(c.z - r, c.z + r + 1):
-		for y in range(c.y - r, c.y + r + 1):
-			for x in range(c.x - r, c.x + r + 1):
+	var breakable := PackedByteArray()
+	breakable.resize(Blocks.COUNT)
+	for t in Blocks.COUNT:
+		breakable[t] = int(Blocks.can_break(t, tool, power) and (not soft_only or Blocks.soft[t] != 0 or t == Blocks.COPPER))
+	for z in range(maxi(0, c.z - r), mini(size.z, c.z + r + 1)):
+		for y in range(maxi(0, c.y - r), mini(size.y, c.y + r + 1)):
+			var row := size.x * (y + size.y * z)
+			for x in range(maxi(0, c.x - r), mini(size.x, c.x + r + 1)):
 				var p := Vector3i(x, y, z)
-				var bt := vget(p)
-				if bt == Blocks.AIR or (soft_only and Blocks.soft[bt] == 0 and bt != Blocks.COPPER):
+				var bt := data[row + x]
+				if breakable[bt] == 0:
 					continue
 				var vc := vcenter(p)
 				if vc.y < min_y:
@@ -751,7 +760,10 @@ func detach_floating(around: Array[Vector3i]) -> void:
 	for p in around:
 		for dd in DIRS:
 			var q: Vector3i = p + dd
-			if checked.has(q) or not _detachable(vget(q)):
+			if checked.has(q):
+				continue
+			if not _detachable(vget(q)):
+				checked[q] = true
 				continue
 			var comp := _component(q, checked)
 			if comp.is_empty():
@@ -789,6 +801,10 @@ func _component(start: Vector3i, checked: Dictionary) -> Array[Vector3i]:
 				continue
 			if not _detachable(nt):
 				anchors += 1
+				# Enough anchors to support even the largest detachable component.
+				if anchors * ANCHOR_WEIGHT >= DETACH_LIMIT:
+					supported = true
+					break
 				continue
 			# 连到了前面已经确认“有支撑”的那一大团：这团也有支撑，不用再搜（大破坏时省掉成千上万次查询）
 			if checked.has(n):
@@ -984,21 +1000,21 @@ func _process(delta: float) -> void:
 		_rebuild_dirty()
 	_flush_debris()
 
-const REBUILD_BUDGET_MS := 6.0
+const REBUILD_BUDGET_MS := 3.0
 
 ## 重建脏区块：按渲染组（GROUP³ 个小区块）来，离主角最近的组先重建。
 ## 每帧的预算把“合并网格 + 重建碰撞”（最贵的一步）也算进去；至少处理一个组，剩下的留到后面几帧
 func _rebuild_dirty() -> void:
 	var groups := {}
 	for c: Vector3i in _dirty:
-		var g := Vector3i(c.x >> 1, c.y >> 1, c.z >> 1)
+		var g := c / render_group
 		if not groups.has(g):
 			groups[g] = []
 		(groups[g] as Array).append(c)
 	var gkeys := groups.keys()
 	var pl := GameState.player as Node3D
 	if pl and gkeys.size() > 1:
-		var pg := to_v(pl.global_position) / (CHUNK * GROUP)
+		var pg := to_v(pl.global_position) / (CHUNK * render_group)
 		gkeys.sort_custom(func(a: Vector3i, b: Vector3i) -> bool: return (a - pg).length_squared() < (b - pg).length_squared())
 	var t0 := Time.get_ticks_usec()
 	for i in gkeys.size():
@@ -1006,6 +1022,8 @@ func _rebuild_dirty() -> void:
 		for c: Vector3i in groups[g]:
 			_dirty.erase(c)
 			_build_chunk(c)
+			if (Time.get_ticks_usec() - t0) > REBUILD_BUDGET_MS * 1000.0:
+				break
 		_commit_group(g)
 		_gdirty.erase(g)
 		if (Time.get_ticks_usec() - t0) > REBUILD_BUDGET_MS * 1000.0:
@@ -1210,7 +1228,7 @@ func _build_chunk(c: Vector3i) -> void:
 	if _chunk_all_air(origin):
 		_mesh_mutex.lock()
 		_sub.erase(c)
-		_gdirty[Vector3i(c.x >> 1, c.y >> 1, c.z >> 1)] = true
+		_gdirty[c / render_group] = true
 		_mesh_mutex.unlock()
 		return
 	var pb := PackedByteArray()
@@ -1236,7 +1254,7 @@ func _build_chunk(c: Vector3i) -> void:
 			_mesh_mutex.lock()
 			if _sub.has(c):
 				_sub.erase(c)
-				_gdirty[Vector3i(c.x >> 1, c.y >> 1, c.z >> 1)] = true
+				_gdirty[c / render_group] = true
 			_mesh_mutex.unlock()
 			return
 	else:
@@ -1354,7 +1372,7 @@ func _build_chunk(c: Vector3i) -> void:
 							v2.append(q[k]); n2.append(nf); c2.append(col); u2.append(CUV[k]); w2.append(tuv2); glass_faces.append(q[k])
 						else:
 							v3.append(q[k]); n3.append(nf); c3.append(col); u3.append(CUV[k]); w3.append(tuv2); faces.append(q[k])
-	var g := Vector3i(c.x >> 1, c.y >> 1, c.z >> 1)
+	var g := c / render_group
 	_mesh_mutex.lock()
 	_gdirty[g] = true
 	if v1.is_empty() and v2.is_empty() and v3.is_empty():
@@ -1371,10 +1389,10 @@ func _commit_group(g: Vector3i) -> void:
 		[PackedVector3Array(), PackedVector3Array(), PackedColorArray(), PackedVector2Array(), PackedVector2Array()]]
 	var faces := PackedVector3Array()
 	var glass_faces := PackedVector3Array()
-	for dz in GROUP:
-		for dy in GROUP:
-			for dx in GROUP:
-				var sc: Vector3i = g * GROUP + Vector3i(dx, dy, dz)
+	for dz in render_group:
+		for dy in render_group:
+			for dx in render_group:
+				var sc: Vector3i = g * render_group + Vector3i(dx, dy, dz)
 				if not _sub.has(sc):
 					continue
 				var sub: Array = _sub[sc]

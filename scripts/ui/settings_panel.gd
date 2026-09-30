@@ -11,13 +11,25 @@ var _rows: Array[SettingRow] = []
 func _ready() -> void:
 	theme = UIKit.theme()
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, UIKit.LINE, 6, 22))
+	add_theme_stylebox_override("panel", UIKit.paper())
 	custom_minimum_size = Vector2(680, 0)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 5)
 	add_child(v)
-	v.add_child(UIKit.label("设置", 30, UIKit.TEXT, true))
+	v.add_child(UIKit.display_label("随心而行", 34))
+	v.add_child(UIKit.label("声音、视角与旅途中的小偏好", 16, UIKit.DIM))
+	var space := Control.new()
+	space.custom_minimum_size.y = 12
+	v.add_child(space)
 	var scroll := ScrollContainer.new()
+	var track := UIKit.panel(Color(UIKit.LINE, 0.08), Color.TRANSPARENT, 0, 1, 0)
+	var thumb := UIKit.panel(Color(UIKit.ACCENT, 0.4), Color.TRANSPARENT, 0, 1, 0)
+	track.shadow_size = 0
+	thumb.shadow_size = 0
+	var bar := scroll.get_v_scroll_bar()
+	bar.add_theme_stylebox_override("scroll", track)
+	for state in ["grabber", "grabber_highlight", "grabber_pressed"]:
+		bar.add_theme_stylebox_override(state, thumb)
 	# 七个完整行，避免下一行在底边露出半截。
 	scroll.custom_minimum_size.y = 401
 	scroll.follow_focus = true
@@ -38,6 +50,8 @@ func _ready() -> void:
 	_row(rows, "减少界面动效", "reduce_motion")
 	_row(rows, "冲撞辅助瞄准", "aim_assist")
 	_row(rows, "远景雾", "fog")
+	_row(rows, "电影质感", "cinematic")
+	_row(rows, "节能画质", "performance")
 	var back := SettingRow.new()
 	back.title = "返回"
 	back.is_button = true
@@ -62,6 +76,7 @@ func _ready() -> void:
 
 func open() -> void:
 	visible = true
+	UIKit.reveal(self)
 	for r in _rows:
 		r.refresh()
 	_rows[0].grab_focus.call_deferred()

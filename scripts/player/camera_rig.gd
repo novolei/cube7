@@ -13,6 +13,7 @@ extends Node3D
 @export var stick_speed := Vector2(2.6, 1.7)
 @export var mouse_sensitivity := 0.0025
 @export var probe_radius := 0.25
+@export var look_ahead := 0.10
 
 var yaw := -PI / 2.0      ## 初始朝向 +X
 var pitch := -0.5         ## 玩家手动控制的俯角
@@ -28,6 +29,11 @@ var _lift := 0.0
 var _hide_timer := 0.0
 var _shake := 0.0
 var _exclude: Array[RID] = []
+var _probe_query := PhysicsShapeQueryParameters3D.new()
+var _probe_shape := SphereShape3D.new()
+var _lift_check := 0.0
+var _lead := Vector3.ZERO
+var _shake_time := 0.0
 
 const LIFT_CANDIDATES := [0.0, 0.3, 0.55, 0.8]
 
@@ -46,10 +52,14 @@ func _ready() -> void:
 		_pivot = _target_pos()
 	_cur_pitch = pitch
 	_cur_dist = distance
+	_probe_shape.radius = probe_radius
+	_probe_query.shape = _probe_shape
+	_probe_query.collision_mask = 1
+	_probe_query.exclude = _exclude
 	GameState.camera = self
 
 	GameState.shake.connect(func(a: float) -> void:
-		if bool(Settings.get_v("shake")):
+		if bool(Settings.get_v("shake")) and not bool(Settings.get_v("reduce_motion")):
 			_shake = maxf(_shake, a))
 
 func _exit_tree() -> void:
@@ -69,8 +79,8 @@ func _target_pos() -> Vector3:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var k := mouse_sensitivity * _sens()
-		yaw -= event.relative.x * k
-		pitch -= event.relative.y * k * _inv()
+		yaw -= event.screen_relative.x * k
+		pitch -= event.screen_relative.y * k * _inv()
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not get_tree().paused:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if event.is_action_pressed("view_toggle"):
@@ -79,15 +89,9 @@ func _unhandled_input(event: InputEvent) -> void:
 ## 从 pivot 沿方向扫掠球体，返回可用距离
 func _probe(dir: Vector3, dist: float) -> float:
 	var space := get_world_3d().direct_space_state
-	var q := PhysicsShapeQueryParameters3D.new()
-	var s := SphereShape3D.new()
-	s.radius = probe_radius
-	q.shape = s
-	q.transform = Transform3D(Basis(), _pivot)
-	q.motion = dir * dist
-	q.collision_mask = 1
-	q.exclude = _exclude
-	var r := space.cast_motion(q)
+	_probe_query.transform = Transform3D(Basis(), _pivot)
+	_probe_query.motion = dir * dist
+	var r := space.cast_motion(_probe_query)
 	return dist * r[0]
 
 func _dir_for(p: float) -> Vector3:
@@ -96,19 +100,34 @@ func _dir_for(p: float) -> Vector3:
 
 func _process(delta: float) -> void:
 	var s := Input.get_vector("cam_left", "cam_right", "cam_up", "cam_down")
+	s *= s.length() # Fine aiming near the stick centre, full speed at the rim.
 	yaw -= s.x * stick_speed.x * delta * _sens()
 	pitch = clampf(pitch - s.y * stick_speed.y * delta * _sens() * _inv(), -1.3, 0.35)
 	if _target:
-		_pivot = _pivot.lerp(_target_pos(), 1.0 - exp(-14.0 * delta))
+		var at := _target_pos()
+		if _pivot.distance_squared_to(at) > 144.0:
+			_pivot = at
+			_lead = Vector3.ZERO
+			_lift = 0.0
+			_lift_target = 0.0
+		var lead_target := Vector3.ZERO
+		if _target is RigidBody3D and not model_view and not bool(Settings.get_v("reduce_motion")):
+			var velocity := (_target as RigidBody3D).linear_velocity
+			lead_target = (Vector3(velocity.x, 0, velocity.z) * look_ahead).limit_length(0.8)
+		_lead = _lead.lerp(lead_target, 1.0 - exp(-3.5 * delta))
+		_pivot.x = lerpf(_pivot.x, at.x + _lead.x, 1.0 - exp(-14.0 * delta))
+		_pivot.z = lerpf(_pivot.z, at.z + _lead.z, 1.0 - exp(-14.0 * delta))
+		_pivot.y = lerpf(_pivot.y, at.y, 1.0 - exp(-8.0 * delta))
 
 	var want := model_distance if model_view else distance * float(Settings.get_v("cam_dist"))
 	var base_pitch := -0.95 if model_view else pitch
 
 	# 选一个不被墙挡住的抬升量（从上方越过箱庭的墙）。带滞回：
 	#   当前抬升被挡 → 换成最小的可用抬升；当前可用且有抬升 → 只有更低的抬升“明显畅通”才降低
+	_lift_check -= delta
 	if model_view:
 		_lift_target = 0.0
-	elif _probe(_dir_for(base_pitch - _lift_target), want) < want * 0.8:
+	elif _lift_check <= 0.0 and _probe(_dir_for(base_pitch - _lift_target), want) < want * 0.8:
 		# 找最小的畅通抬升；都被挡（比如在室内）就选看得最远的那个
 		var best_c := _lift_target
 		var best_d := -1.0
@@ -121,13 +140,15 @@ func _process(delta: float) -> void:
 				best_d = d
 				best_c = c
 		_lift_target = best_c
-	elif _lift_target > 0.0:
+	elif _lift_check <= 0.0 and _lift_target > 0.0:
 		for c in LIFT_CANDIDATES:
 			if c >= _lift_target:
 				break
 			if _probe(_dir_for(clampf(base_pitch - c, -1.4, 0.35)), want) >= want * 0.95:
 				_lift_target = c
 				break
+	if _lift_check <= 0.0:
+		_lift_check = 0.10 # Candidate search at 10 Hz; safety sweep still runs every frame.
 	_lift = lerpf(_lift, _lift_target, 1.0 - exp(-4.0 * delta))
 	_cur_pitch = lerpf(_cur_pitch, clampf(base_pitch - _lift, -1.4, 0.35), 1.0 - exp(-10.0 * delta))
 
@@ -153,11 +174,14 @@ func _process(delta: float) -> void:
 		_target.set_visual_hidden(_hide_timer > 0.0)
 
 	# 屏幕震动
+	_shake_time += delta
+	if not bool(Settings.get_v("shake")) or bool(Settings.get_v("reduce_motion")):
+		_shake = 0.0
 	if _shake > 0.0:
 		_shake = maxf(_shake - delta * 1.5, 0.0)
 		var sk := _shake * _shake
-		_cam.h_offset = randf_range(-1, 1) * sk * 0.6
-		_cam.v_offset = randf_range(-1, 1) * sk * 0.6
+		_cam.h_offset = sin(_shake_time * 79.0) * sk * 0.42
+		_cam.v_offset = sin(_shake_time * 103.0 + 0.6) * sk * 0.30
 	else:
 		_cam.h_offset = 0.0
 		_cam.v_offset = 0.0

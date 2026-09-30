@@ -113,7 +113,9 @@ static func apply(node: Node, name: String, keep_sun_yaw := false) -> Dictionary
 		mat.set_shader_parameter("star_amount", p.stars)
 		mat.set_shader_parameter("horizon_glow", p.horizon_glow)
 		sky.sky_material = mat
-		sky.radiance_size = Sky.RADIANCE_SIZE_128
+		# Animated cloud geometry/sea carry the movement; lighting is stable per chapter.
+		sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
+		sky.radiance_size = Sky.RADIANCE_SIZE_64 if OS.has_feature("mobile") else Sky.RADIANCE_SIZE_128
 		env.sky = sky
 		env.background_mode = Environment.BG_SKY
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
@@ -144,6 +146,7 @@ static func apply(node: Node, name: String, keep_sun_yaw := false) -> Dictionary
 		sun.light_energy = p.sun_energy
 		sun.shadow_enabled = true
 		sun.directional_shadow_max_distance = 70.0
+	Settings.apply_visuals(root)
 	return p
 
 ## 云海材质参数（和天空地平线对齐）

@@ -11,13 +11,13 @@ var _list: VBoxContainer
 func _ready() -> void:
 	theme = UIKit.theme()
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, UIKit.LINE, 6, 28))
+	add_theme_stylebox_override("panel", UIKit.paper(28))
 	custom_minimum_size = Vector2(760, 0)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	add_child(v)
 	var head := HBoxContainer.new()
-	head.add_child(UIKit.label("改装 PIX", 34, UIKit.TEXT, true))
+	head.add_child(UIKit.display_label("形态改装", 34))
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(sp)
@@ -45,6 +45,7 @@ func _ready() -> void:
 
 func open() -> void:
 	visible = true
+	UIKit.reveal(self)
 	_refresh()
 	_rows[0].grab_focus.call_deferred()
 
@@ -52,15 +53,16 @@ func _make_row(u: Dictionary) -> PanelContainer:
 	var pc := PanelContainer.new()
 	pc.focus_mode = Control.FOCUS_ALL
 	pc.custom_minimum_size = Vector2(0, 58)
-	var st_n := UIKit.panel(Color(1, 1, 1, 0.04), Color.TRANSPARENT, 4, 10, 0)
+	var st_n := UIKit.panel(Color.TRANSPARENT, Color.TRANSPARENT, 0, 10, 0)
 	st_n.shadow_size = 0
-	var st_f := UIKit.panel(Color(UIKit.ACCENT2, 0.12), UIKit.ACCENT2, 4, 10, 1)
+	var st_f := UIKit.panel(Color(UIKit.ACCENT2, 0.03), UIKit.ACCENT2, 0, 10, 0)
+	st_f.border_width_left = 2
+	st_f.shadow_size = 0
 	pc.add_theme_stylebox_override("panel", st_n)
 	pc.focus_entered.connect(func() -> void:
 		pc.add_theme_stylebox_override("panel", st_f)
 		Sfx.play("ui_move", Vector3.INF, -12.0, 0.0))
 	pc.focus_exited.connect(func() -> void: pc.add_theme_stylebox_override("panel", st_n))
-	pc.mouse_entered.connect(func() -> void: pc.grab_focus())
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 14)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -70,7 +72,7 @@ func _make_row(u: Dictionary) -> PanelContainer:
 	tv.add_theme_constant_override("separation", 0)
 	tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(tv)
-	tv.add_child(UIKit.label(u.name, 22, UIKit.TEXT, true))
+	tv.add_child(UIKit.label(u.name, 22, UIKit.TEXT))
 	tv.add_child(UIKit.label(u.desc, 15, UIKit.DIM))
 	var pips := HBoxContainer.new()
 	pips.name = "Pips"
@@ -85,6 +87,8 @@ func _make_row(u: Dictionary) -> PanelContainer:
 	h.add_child(cost)
 	pc.set_meta("id", u.id)
 	pc.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseMotion and e.relative != Vector2.ZERO:
+			pc.grab_focus()
 		if e.is_action_pressed("ui_accept") or (e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT):
 			pc.accept_event()
 			_buy(pc))
@@ -95,17 +99,10 @@ func _buy(pc: Control) -> void:
 	if Upgrades.buy(id):
 		Sfx.play("success", Vector3.INF, -4.0, 0.0)
 		GameState.rumble(0.5, 0.4, 0.15)
-		var tw := pc.create_tween()
-		pc.pivot_offset = pc.size * 0.5
-		pc.scale = Vector2(1.04, 1.04)
-		tw.tween_property(pc, "scale", Vector2.ONE, 0.2)
+		UIKit.pulse(pc)
 	else:
 		Sfx.play("ui_back", Vector3.INF, -6.0, 0.0)
-		var tw := pc.create_tween()
-		for k in 3:
-			tw.tween_property(pc, "position:x", pc.position.x + 6.0, 0.04)
-			tw.tween_property(pc, "position:x", pc.position.x - 6.0, 0.04)
-		tw.tween_property(pc, "position:x", pc.position.x, 0.04)
+		UIKit.motion_scale(pc, 1.0, 0.2)
 	_refresh()
 
 func _refresh() -> void:

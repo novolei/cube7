@@ -225,6 +225,8 @@ static func material(render: int) -> Material:
 		return _mats[render]
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/voxel_glow.gdshader" if render == Blocks.Render.GLOW else ("res://shaders/voxel_glass.gdshader" if render == Blocks.Render.GLASS else "res://shaders/voxel_opaque.gdshader"))
+	if OS.has_feature("mobile") and render == Blocks.Render.OPAQUE:
+		m.shader = load("res://shaders/voxel_opaque_mobile.gdshader")
 	_mats[render] = m
 	return m
 

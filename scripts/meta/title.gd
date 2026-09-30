@@ -76,13 +76,16 @@ func _golden_hour() -> void:
 		sun.rotation_degrees = Vector3(-32, 90.0 - rad_to_deg(ANGLE0) + 35.0, 0)
 
 func _process(delta: float) -> void:
-	_t += delta
+	if _cam == null:
+		return
+	if not bool(Settings.get_v("reduce_motion")):
+		_t += delta
 	_angle = ANGLE0 + sin(_t * 0.045) * 0.22
 	var p := CENTER + Vector3(cos(_angle) * 60.0, 19.0 + sin(_angle * 0.7) * 2.5, sin(_angle) * 60.0)
 	_cam.global_position = p
 	_cam.look_at(CENTER + Vector3(0, 17.0, 0))
 	if _press and _state == "press":
-		_press.modulate.a = 0.4 + 0.6 * (0.5 + 0.5 * sin(_t * 2.4))
+		_press.modulate.a = 1.0 if bool(Settings.get_v("reduce_motion")) else 0.65 + 0.35 * (0.5 + 0.5 * sin(_t * 1.8))
 	if _logo:
 		_logo.position.y = _logo_y + sin(_t * 1.1) * 3.0
 	if _hero:
@@ -249,6 +252,8 @@ func _build_ui() -> void:
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	motes.material = add
 	_ui.add_child(motes)
+	motes.visible = not bool(Settings.get_v("reduce_motion"))
+	Settings.changed.connect(func() -> void: motes.visible = not bool(Settings.get_v("reduce_motion")))
 
 	_build_logo()
 
@@ -336,6 +341,8 @@ func _build_logo() -> void:
 				_fragments.append(clip)
 		x += advance
 	_title_label = UIKit.display_label("方舟星球", 78)
+	_title_label.add_theme_color_override("font_shadow_color", Color(0.02, 0.09, 0.10, 0.4))
+	_title_label.add_theme_constant_override("shadow_offset_y", 2)
 	_title_label.position = Vector2(0, 175)
 	_title_label.size = Vector2(960, 96)
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -356,6 +363,14 @@ func _build_logo() -> void:
 
 ## 字形碎片归位 → 中文标题、细线和副标题跟入。
 func _intro() -> void:
+	if bool(Settings.get_v("reduce_motion")):
+		for clip in _fragments:
+			clip.position = clip.get_meta(&"rest")
+		for child in _logo.get_children():
+			(child as CanvasItem).modulate.a = 1.0
+		create_tween().tween_property(_black, "color:a", 0.0, 0.35)
+		_state = "press"
+		return
 	var tw := create_tween()
 	tw.tween_property(_black, "color:a", 0.0, 0.7).set_trans(Tween.TRANS_SINE)
 	for i in _fragments.size():
@@ -452,17 +467,7 @@ func _item(text: String, cb: Callable, sub := "", accent := UIKit.ACCENT2) -> Bu
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.focus_mode = Control.FOCUS_ALL
 	b.custom_minimum_size = Vector2(MENU_W, 76 if sub != "" else 62)
-	var normal := UIKit.panel(Color.TRANSPARENT, Color.TRANSPARENT, 4, 10, 0)
-	var focused := UIKit.panel(Color(0.02, 0.10, 0.11, 0.08), accent, 2, 10, 0)
-	focused.border_width_left = 2
-	normal.shadow_size = 0
-	focused.shadow_size = 0
-	var pressed := focused.duplicate() as StyleBoxFlat
-	pressed.bg_color = Color(accent, 0.16)
-	for pair in [["normal", normal], ["disabled", normal], ["hover", focused], ["focus", focused], ["pressed", pressed], ["hover_pressed", pressed]]:
-		b.add_theme_stylebox_override(pair[0], pair[1])
-	b.add_theme_font_override("font", UIKit.font())
-	b.add_theme_font_size_override("font_size", 30)
+	UIKit.quiet_button(b, 30, accent)
 	b.add_theme_color_override("font_color", UIKit.TEXT)
 	b.add_theme_color_override("font_hover_color", UIKit.TEXT)
 	b.add_theme_color_override("font_focus_color", UIKit.TEXT)
@@ -582,19 +587,14 @@ func _logo_show(on: bool) -> void:
 func _dim_show(on: bool) -> void:
 	create_tween().tween_property(_dim, "modulate:a", 1.0 if on else 0.0, 0.25)
 
-func _panel(w: float, h: float, border := UIKit.LINE) -> PanelContainer:
+func _panel(w: float, h: float, _border := UIKit.LINE) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.theme = UIKit.theme()
-	p.add_theme_stylebox_override("panel", UIKit.panel(UIKit.BG_SOLID, border, 6, 30, 1))
+	p.add_theme_stylebox_override("panel", UIKit.paper(30))
 	UIKit.place(p, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-w * 0.5, -h * 0.5, w * 0.5, h * 0.5))
 	_ui.add_child(p)
 	# 弹出动画
-	p.modulate.a = 0.0
-	p.scale = Vector2(0.96, 0.96)
-	p.pivot_offset = Vector2(w, h) * 0.5
-	var tw := create_tween().set_parallel()
-	tw.tween_property(p, "modulate:a", 1.0, 0.18)
-	tw.tween_property(p, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	UIKit.reveal(p)
 	return p
 
 func _close_panel(p: Control) -> void:

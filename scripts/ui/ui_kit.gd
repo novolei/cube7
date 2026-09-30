@@ -71,22 +71,23 @@ static func theme() -> Theme:
 	t.default_font_size = 22
 	t.set_color("font_color", "Label", TEXT)
 	# 按钮
-	var normal := panel(Color.TRANSPARENT, Color(ACCENT2, 0.12), 2, 14)
+	var normal := panel(Color.TRANSPARENT, Color.TRANSPARENT, 0, 14, 0)
 	normal.content_margin_left = 24
 	normal.content_margin_right = 24
 	normal.shadow_size = 0
-	var hover := panel(Color(ACCENT2, 0.12), ACCENT2, 2, 14, 1)
+	var hover := panel(Color(ACCENT2, 0.045), ACCENT2, 0, 14, 0)
+	hover.border_width_left = 2
 	hover.content_margin_left = 24
 	hover.content_margin_right = 24
 	hover.shadow_color = Color(ACCENT2, 0.15)
 	hover.shadow_size = 0
 	var pressed := hover.duplicate() as StyleBoxFlat
-	pressed.bg_color = Color(ACCENT2, 0.22)
+	pressed.bg_color = Color(ACCENT2, 0.10)
 	var disabled := normal.duplicate() as StyleBoxFlat
 	disabled.bg_color = Color(1, 1, 1, 0.02)
 	for st in [["normal", normal], ["hover", hover], ["focus", hover], ["pressed", pressed], ["disabled", disabled], ["hover_pressed", pressed]]:
 		t.set_stylebox(st[0], "Button", st[1])
-	t.set_font("font", "Button", font(true))
+	t.set_font("font", "Button", font())
 	t.set_font_size("font_size", "Button", 24)
 	t.set_color("font_color", "Button", TEXT)
 	t.set_color("font_hover_color", "Button", TEXT)
@@ -226,22 +227,85 @@ static func prompt(action: String, desc: String, size := 20) -> HBoxContainer:
 ## 给按钮加上焦点动效与音效
 static func juice(b: Button) -> void:
 	b.focus_entered.connect(func() -> void:
-		motion_scale(b, 1.015, 0.14)
+		if not b.button_pressed:
+			motion_scale(b, 1.012, 0.22)
 		Sfx.play("ui_move", Vector3.INF, -12.0, 0.03))
-	b.focus_exited.connect(func() -> void: motion_scale(b, 1.0, 0.14))
-	b.mouse_entered.connect(func() -> void: b.grab_focus())
+	b.focus_exited.connect(func() -> void:
+		if not b.button_pressed:
+			motion_scale(b, 1.0, 0.22))
+	b.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseMotion and event.relative != Vector2.ZERO and not b.disabled:
+			b.grab_focus())
 	press_feedback(b)
 	b.pressed.connect(func() -> void: Sfx.play("ui_confirm", Vector3.INF, -8.0, 0.0))
 
 static func press_feedback(b: Button) -> void:
-	b.button_down.connect(func() -> void: motion_scale(b, 0.965, 0.08))
-	b.button_up.connect(func() -> void: motion_scale(b, 1.015 if b.has_focus() else 1.0, 0.22, true))
+	b.button_down.connect(func() -> void: motion_scale(b, 0.978, 0.10))
+	b.button_up.connect(func() -> void: motion_scale(b, 1.012 if b.has_focus() else 1.0, 0.26))
 
-static func motion_scale(c: Control, target: float, seconds: float, spring := false) -> void:
-	var previous: Tween = c.get_meta(&"motion_tween") as Tween if c.has_meta(&"motion_tween") else null
-	if previous and previous.is_valid():
-		previous.kill()
-	c.pivot_offset = c.size * 0.5
+static func motion_scale(c: Control, target: float, seconds: float, _spring := false) -> void:
+	var spring := c.get_node_or_null("UISpring") as UISpring
+	if spring == null:
+		spring = UISpring.new()
+		spring.name = "UISpring"
+		c.add_child(spring)
+	spring.retarget(target, seconds)
+
+static func reveal(c: Control) -> void:
+	var old: Tween = c.get_meta(&"reveal_tween") if c.has_meta(&"reveal_tween") else null
+	if old and old.is_valid():
+		old.kill()
+	c.modulate.a = 0.0
+	c.scale = Vector2.ONE * (1.0 if bool(Settings.get_v("reduce_motion")) else 0.985)
+	motion_scale(c, 1.0, 0.32)
 	var tw := c.create_tween().set_ignore_time_scale(true).set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	tw.tween_property(c, "scale", Vector2.ONE * target, 0.05 if bool(Settings.get_v("reduce_motion")) else seconds).set_trans(Tween.TRANS_BACK if spring else Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	c.set_meta(&"motion_tween", tw)
+	tw.tween_property(c, "modulate:a", 1.0, 0.22)
+	c.set_meta(&"reveal_tween", tw)
+
+static func pulse(c: Control, amount := 1.06) -> void:
+	motion_scale(c, 1.0, 0.28)
+	var spring := c.get_node("UISpring") as UISpring
+	spring.value = maxf(spring.value, amount)
+
+## Text navigation, shared by the title and pause pages.
+static func quiet_button(b: Button, size := 28, accent := ACCENT2) -> void:
+	var normal := panel(Color.TRANSPARENT, Color.TRANSPARENT, 0, 10, 0)
+	var focus := panel(Color(accent, 0.045), accent, 0, 10, 0)
+	focus.border_width_left = 2
+	normal.shadow_size = 0
+	focus.shadow_size = 0
+	var pressed := focus.duplicate() as StyleBoxFlat
+	pressed.bg_color = Color(accent, 0.10)
+	for state in [["normal", normal], ["disabled", normal], ["focus", focus], ["hover", focus], ["pressed", pressed], ["hover_pressed", pressed]]:
+		b.add_theme_stylebox_override(state[0], state[1])
+	b.add_theme_font_override("font", font())
+	b.add_theme_font_size_override("font_size", size)
+
+## A fading ink wash at the frame edge keeps text readable without boxed cards.
+static func edge_wash(parent: Control, bottom := false) -> void:
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([Color(0.025, 0.085, 0.085, 0.66), Color(0.025, 0.085, 0.085, 0.0)])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.fill_from = Vector2(0.5, 1.0 if bottom else 0.0)
+	texture.fill_to = Vector2(0.5, 0.0 if bottom else 1.0)
+	var rect := TextureRect.new()
+	rect.texture = texture
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	place(rect, Vector4(0, 1, 1, 1) if bottom else Vector4(0, 0, 1, 0), Vector4(0, -210, 0, 0) if bottom else Vector4(0, 0, 0, 190))
+	parent.add_child(rect)
+
+static func paper(pad := 26) -> StyleBoxTexture:
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.50, 1.0])
+	gradient.colors = PackedColorArray([Color(BG_SOLID, 0.92), Color(BG_SOLID, 0.80), Color(BG_SOLID, 0.0)])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.fill = GradientTexture2D.FILL_RADIAL
+	texture.fill_from = Vector2(0.5, 0.5)
+	texture.fill_to = Vector2(1.08, 0.5)
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.set_content_margin_all(pad)
+	return style
