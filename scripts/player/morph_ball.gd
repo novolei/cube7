@@ -69,6 +69,7 @@ var _charge_node: MeshInstance3D
 const WAVE_RADIUS := 3.6
 
 var _ground_timer := 0.0
+var _jump_buffer := 0.0
 var _prev_vel := Vector3.ZERO
 var _impacts: Array = []
 var _ability_cd := 0.0
@@ -414,7 +415,7 @@ func _physics_process(delta: float) -> void:
 	if _roll_sound and _roll_sound.stream:
 		var sp := linear_velocity.length() if _ground_timer > 0.0 and not lock_rotation else 0.0
 		var vol := clampf(sp / 9.0, 0.0, 1.0)
-		_roll_sound.volume_db = linear_to_db(maxf(vol * 0.8, 0.0001))
+		_roll_sound.volume_db = linear_to_db(maxf(vol * 0.35, 0.0001))
 		_roll_sound.pitch_scale = 0.7 + vol * 0.7
 
 	# 抓着的物件跟随头顶
@@ -456,14 +457,21 @@ func launched(secs := 0.5) -> void:
 ## 跳跃：起跳 / 可变高度（松开跳跃键时截短上升）/ 气泡的空中再跳与滑翔
 func _update_jump(delta: float, f: Dictionary) -> void:
 	if not GameState.allow_jump:
+		_jump_buffer = 0.0
 		return
 	var pressed := _jump_pressed()
 	var held := _jump_held()
 	if pressed:
+		_jump_buffer = 0.12
+	else:
+		_jump_buffer = maxf(_jump_buffer - delta, 0.0)
+	if _jump_buffer > 0.0:
 		if _ground_timer > 0.0:
+			_jump_buffer = 0.0
 			_do_jump(float(f.jump))
 			Sfx.play("jump_" + str(f.id), global_position, -6.0, 0.06)
-		elif _air_jumps > 0:
+		elif pressed and _air_jumps > 0:
+			_jump_buffer = 0.0
 			_air_jumps -= 1
 			_do_jump(float(f.jump) * 0.8)
 			_burst(f.color)
@@ -850,6 +858,7 @@ func _hardness_hint(at: Vector3, speed: float) -> void:
 
 ## 复活（由 GameState.respawn 调用）
 func respawn_at(pos: Vector3, form_idx: int, locks: bool) -> void:
+	_jump_buffer = 0.0
 	if _held:
 		_release_held(Vector3.ZERO)
 	teleport(pos)

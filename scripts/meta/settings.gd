@@ -4,7 +4,7 @@ extends Node
 signal changed
 
 var values := {
-	"master": 0.9, "music": 0.8, "sfx": 0.9,
+	"master": 0.9, "music": 0.8, "sfx": 0.9, "ui": 0.8,
 	"cam_sens": 1.0, "invert_y": false, "shake": true, "subtitles_speed": 1.0,
 	"cam_dist": 1.0, "rumble": 0.8, "aim_assist": true, "fog": true,
 }
@@ -29,10 +29,10 @@ func set_v(k: String, v) -> void:
 	changed.emit()
 
 func apply() -> void:
-	for pair in [["Master", "master"], ["Music", "music"], ["SFX", "sfx"]]:
+	for pair in [["Master", "master"], ["Music", "music"], ["SFX", "sfx"], ["UI", "ui"]]:
 		var i := AudioServer.get_bus_index(pair[0])
 		if i >= 0:
-			AudioServer.set_bus_volume_db(i, linear_to_db(maxf(float(values[pair[1]]), 0.0001)) + (-4.0 if pair[0] == "Music" else 0.0))
+			AudioServer.set_bus_volume_db(i, linear_to_db(maxf(float(values[pair[1]]), 0.0001)) + (-4.0 if pair[0] == "Music" or pair[0] == "UI" else 0.0))
 	# 远景雾开关：直接改当前场景的环境
 	var tree := get_tree()
 	if tree and tree.current_scene:

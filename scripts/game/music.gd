@@ -22,6 +22,9 @@ var _duck_timer := 0.0
 func _ready() -> void:
 	_ensure_bus("Music", -4.0)
 	_ensure_bus("SFX", -2.0)
+	_ensure_bus("UI", -4.0)
+	_ensure_bus("Voice", -6.0)
+	AudioServer.set_bus_send(AudioServer.get_bus_index("Voice"), "SFX")
 	for layer in LAYERS:
 		var p := AudioStreamPlayer.new()
 		p.bus = "Music"
@@ -102,6 +105,6 @@ func _process(delta: float) -> void:
 		_duck = move_toward(_duck, 1.0, delta * 0.8)
 	for layer in LAYERS:
 		var target: float = st[layer] * _duck
-		_levels[layer] = move_toward(_levels[layer], target, delta * 0.6)
+		_levels[layer] = move_toward(_levels[layer], target, delta * (2.5 if target < _levels[layer] else 0.6))
 		var p: AudioStreamPlayer = _players[layer]
 		p.volume_db = linear_to_db(maxf(_levels[layer], 0.0001))

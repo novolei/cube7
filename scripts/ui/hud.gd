@@ -548,6 +548,7 @@ func _process(delta: float) -> void:
 		_chars = 0.0
 		_last_char = 0
 		_nova_time = 2.8 + t.length() * 0.065
+		Music.duck(_nova_time, 0.55)
 		_nova.visible = true
 		_nova.modulate.a = 0.0
 		create_tween().tween_property(_nova, "modulate:a", 1.0, 0.2)
@@ -556,9 +557,9 @@ func _process(delta: float) -> void:
 		_chars += delta * 38.0
 		var n := int(_chars)
 		_nova_text.visible_characters = n
-		# 语音拟声：每两个字发一个音节
+		# 留出字词间的呼吸，避免语音拟声盖过音乐与环境声
 		var plain := _nova_text.get_parsed_text()
-		if n != _last_char and n <= plain.length() and n % 2 == 0:
+		if n != _last_char and n <= plain.length() and n % 5 == 0:
 			var ch := plain.substr(n - 1, 1) if n > 0 else ""
 			if ch.strip_edges() != "" and not ch in "，。！？、…—「」【】":
 				Sfx.play("voice_nova", Vector3.INF, -12.0, 0.18)

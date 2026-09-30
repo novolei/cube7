@@ -32,7 +32,7 @@ func play(n: String, pos := Vector3.INF, volume_db := 0.0, pitch_var := 0.08, pi
 		p2.stream = s
 		p2.volume_db = volume_db
 		p2.pitch_scale = pitch + randf_range(-pitch_var, pitch_var)
-		p2.bus = "SFX"
+		p2.bus = "UI" if n.begins_with("ui_") else ("Voice" if n.begins_with("voice_") else "SFX")
 		p = p2
 		add_child(p2)
 		p2.play()
