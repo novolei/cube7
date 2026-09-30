@@ -29,6 +29,29 @@ func _run() -> void:
 	print("===== 破坏与重构（第 %d 章） =====" % GameState.chapter)
 	var sites := get_tree().get_nodes_in_group("rebuild_site")
 	check(sites.size() >= 1, "关卡里有 %d 个重构点" % sites.size())
+	if GameState.chapter == 1:
+		var tree_path: RebuildSite
+		for site: RebuildSite in sites:
+			if site.site_id == "gh_tree_path":
+				tree_path = site
+				break
+		check(tree_path != null, "花园有通向古树的重构步道")
+		if tree_path:
+			var a := Vector3i(18, 20, 56)
+			var b := Vector3i(37, 20, 64)
+			check(W.get_block(a + Vector3i.DOWN) != Blocks.AIR and W.get_block(a) == Blocks.AIR
+				and W.get_block(b + Vector3i.DOWN) != Blocks.AIR and W.get_block(b) == Blocks.AIR, "步道两端接在可行走地面上")
+			var center := Vector3i(28, 20, 60)
+			if not tree_path.done:
+				check(W.get_block(center + Vector3i.DOWN) == Blocks.AIR, "步道跨越原有缺口")
+			tree_path._place_all()
+			check(W.get_block(center) != Blocks.AIR, "重建后缺口可以通行")
+			var clear := true
+			for i in 20:
+				var c := Vector3i(18 + i, 20, 56 + roundi(8.0 * i / 19.0))
+				if W.get_block(c + Vector3i.UP) != Blocks.AIR:
+					clear = false
+			check(clear, "步道上方没有树木挡路")
 	# 1. 冲刺能撞碎泥土地形；落地不会把地面砸穿
 	var start := P.global_position
 	var dirt_ok := Blocks.can_break(Blocks.DIRT, "impact", 11.5) and not Blocks.can_break(Blocks.DIRT, "impact", 7.0)

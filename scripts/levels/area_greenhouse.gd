@@ -1028,8 +1028,9 @@ func _logic() -> void:
 	])
 	_fragment("gh_1", deck_cell + Vector3i(-2, 0, 0), {"log_text": "艾拉·林，研究日志 #12：方舟引擎第一次成功——一块岩石被拆成方块，又被原样拼了回来。它摸起来还是暖的。"})
 	coin_line(Vector3i(20, G - 2, 74), Vector3i(24, G - 1, 74), 3)
-	# 重构点：花园里的旧瞭望台、锈蚀营地边的哨塔
+	# 花园：同样的物质可以先换高处补给，或先打通去古树的支线。
 	rebuild_tower("gh_t1", 38, 66, 120)
+	rebuild_bridge("gh_tree_path", Vector3i(18, G, 56), Vector3i(37, G, 64), 120, Vector3i(39, G, 65), "古树捷径", 4)
 	rebuild_tower("gh_t2", 28, 112, 240, 14, {"coins": 30, "energy": 5})
 	coin_line(Vector3i(29, G, 74), Vector3i(44, G, 74), 6)
 	coin_line(Vector3i(33, G, 64), Vector3i(33, G, 67), 2)

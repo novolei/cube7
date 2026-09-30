@@ -217,7 +217,7 @@ func rebuild_tower_at(id: String, base: Vector3i, cost: int, h := 12, chest := {
 	site.clear_b = base + Vector3i(6, 5, 6)
 	site.world = world
 	site.site_id = id
-	site.title = "瞭望台"
+	site.title = "补给瞭望台"
 	site.cost = cost
 	site.blueprint = res[0]
 	site.pad_cell = base + Vector3i(-5, 0, 1)
@@ -231,8 +231,8 @@ func rebuild_tower_at(id: String, base: Vector3i, cost: int, h := 12, chest := {
 	return site
 
 ## 重构点 · 桥
-func rebuild_bridge(id: String, a: Vector3i, b: Vector3i, cost: int, pad: Vector3i, title := "断桥") -> RebuildSite:
-	var res := RebuildSite.bridge(a, b)
+func rebuild_bridge(id: String, a: Vector3i, b: Vector3i, cost: int, pad: Vector3i, title := "断桥", width := 5) -> RebuildSite:
+	var res := RebuildSite.bridge(a, b, width)
 	var site := RebuildSite.new()
 	site.world = world
 	site.site_id = id
