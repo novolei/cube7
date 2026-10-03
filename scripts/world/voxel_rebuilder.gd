@@ -20,6 +20,8 @@ var _started := false
 var pitch_base := 0.9
 
 func _ready() -> void:
+	# Flights are evaluated at render cadence, without a second physics interpolation.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	top_level = true
 	global_transform = Transform3D.IDENTITY
 	_mm = MultiMesh.new()

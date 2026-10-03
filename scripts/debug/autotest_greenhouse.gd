@@ -1,5 +1,5 @@
 extends Node
-## 区域 1 整关测试：godot --headless --path . -- --autotest=greenhouse
+## 区域 1 整关测试：godot --path . res://scenes/main.tscn -- --autotest=greenhouse [--route-out=<directory>]
 ## 沿设计路线走一遍，确认每个谜题都能通过、不能被跳过。
 
 var fails: Array[String] = []
@@ -7,13 +7,19 @@ var P: MorphBall
 var W: VoxelWorld
 var L: AreaGreenhouse
 const G := AreaGreenhouse.G
+var _out := ""
 
 func _ready() -> void:
 	var main := get_parent()
 	P = main.player
 	W = main.world
 	L = main.level
+	GameState.camera.yaw = L.spawn_yaw()
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--route-out="):
+			_out = arg.trim_prefix("--route-out=")
 	P.debug_override = true
+	W._rng.seed = 730
 	# 路线测试不管敌人（战斗在测试房间里单独测）；先确认两只都放出来了
 	enemy_count = L.enemies.size()
 	for e in L.enemies:
@@ -30,6 +36,13 @@ func check(cond: bool, msg: String) -> void:
 
 func wait(t: float) -> void:
 	await get_tree().create_timer(t).timeout
+
+func shot(name: String) -> void:
+	if _out.is_empty() or DisplayServer.get_name() == "headless":
+		return
+	DirAccess.make_dir_recursive_absolute(_out)
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(_out.path_join(name + ".png"))
 
 ## 调试输入里：前 = +X，右 = +Z
 func go(dir: Vector2, secs: float, ability := false, boost := false) -> void:
@@ -174,6 +187,7 @@ func _run() -> void:
 				cols.append("%d:%d(%d)" % [xx, top, W.get_block(Vector3i(xx, top, zz))])
 			print("    调试：球 ", vx(P.global_position), " 列顶 ", cols)
 		check(vx(P.global_position).x >= 62, "从填平处滚过深沟（x=%d）" % vx(P.global_position).x)
+	await shot("01_filled_path")
 
 	# 4. 坡道登上温室高台
 	await tp(Vector3i(64, G, 71))
@@ -194,6 +208,7 @@ func _run() -> void:
 	await go(Vector2(-1, 0), 1.5)
 	await wait(1.0)
 	check(GameState.unlocked_forms[MorphBall.DRILL] and P.form == MorphBall.DRILL, "拾取钻头核心：解锁并自动变身")
+	await shot("02_greenhouse")
 
 	# 7. 滚球撞不开泥土墙，钻头可以
 	P.apply_form(MorphBall.BALL, false)
@@ -214,6 +229,7 @@ func _run() -> void:
 			row.append("%d:%d/%d" % [xx, W.get_block(Vector3i(xx, G + 6, 52)), W.get_block(Vector3i(xx, G + 7, 52))])
 		print("    调试：球 ", P.global_position, " 形态 ", P.form, " 着地 ", P.grounded, " 行 ", row)
 	check(vx(P.global_position).x >= 79, "钻穿泥土墙（x=%d）" % vx(P.global_position).x)
+	check(vx(P.global_position).y >= G + 6, "向前钻掘保留脚下道路，不把自己挖进沟（y=%d）" % vx(P.global_position).y)
 
 	# 8. 松土：向下钻掉进洞穴，从悬崖侧面出来
 	await tp(Vector3i(91, G + 6, 51))
@@ -242,11 +258,21 @@ func _run() -> void:
 
 	# 10. 放进塔基插槽 → 光桥展开
 	if is_instance_valid(L.crystal):
-		L.crystal.global_position = W.voxel_center(AreaGreenhouse.SOCKET) + Vector3(0.6, 1.2, 0.4)
-		L.crystal.linear_velocity = Vector3.ZERO
+		await tp(W.world_to_voxel(L.crystal.global_position) + Vector3i(3, 0, 0))
+		P.toggle_grab()
+		await wait(0.3)
+		check(P.is_holding(), "用牵引抓起晶块")
+		await tp(AreaGreenhouse.SOCKET + Vector3i(0, 1, 5))
+		await wait(0.3)
+		var yaw: float = GameState.camera.yaw
+		GameState.camera.yaw = 0.0
+		P.toggle_grab()
+		GameState.camera.yaw = yaw
+		check(not P.is_holding(), "从塔前轻抛晶块（不直接移进插槽）")
 	await wait(4.0)
 	check(L.socket.done, "晶块被插槽吸入")
 	check(W.get_block(Vector3i(104, G + 9, 72)) == Blocks.CRYSTAL, "光桥展开")
+	await shot("03_tower")
 
 	# 11. 沿光桥滚上终点浮岛
 	P.apply_form(MorphBall.BALL, false)

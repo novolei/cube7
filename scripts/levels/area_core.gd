@@ -386,17 +386,26 @@ func _logic() -> void:
 	talk(SPAWN + Vector3i(-4, 0, -4), SPAWN + Vector3i(4, 5, 4), [
 		"方舟星核……五座塔的光都汇到这里了。",
 		"锈蚀是从塔顶开始的。PIX，我们一路爬上去。",
-		"坡道的入口被锈封住了——那种厚锈，原地蓄力再冲。",
+		"入口的厚锈，和沉船上的很像。",
+	])
+	talk(SPAWN + Vector3i(-4, 0, -4), SPAWN + Vector3i(4, 5, 4), [
+		"停下来按住{ability}蓄力，松开再冲。厚锈需要更大的力道。",
+	], 28.0, 0)
+	talk(site_pad(0) + Vector3i(-3, 0, -3), site_pad(0) + Vector3i(3, 3, 3), [
+		"坡道的蓝图还在。塔身上的锈瘤，也能变成修复它的物质。",
+	], 32.0, 1)
+	talk(Vector3i(C.x - 4, G1, C.y + 10), Vector3i(C.x + 4, G1 + 4, C.y + 16), [
+		"反应堆井里的热气还在往上升。它一直通到上一层。",
 	])
 	talk(Vector3i(C.x - 4, G1, C.y + 10), Vector3i(C.x + 4, G1 + 4, C.y + 16), [
-		"反应堆井。井底有上升气流——换成气泡形态，按住{jump}能飘得更稳。",
-	])
+		"气泡能顺着热气上升。按住{jump}滑翔，会飘得更稳。",
+	], 28.0, 2)
 	talk(Vector3i(C.x - 4, G2, C.y - 22), Vector3i(C.x + 4, G2 + 4, C.y - 16), [
 		"空中轨道一直通到塔顶。……准备好了吗？",
 	])
-	GameState.set_objective(0, "撞开锈墙，沿绕塔坡道往上爬", _v(side_cell(0, -S0 + 1, S0 + 2, G0)))
-	objective(1, "坡道断了——拆锈瘤攒物质，重建坡道", site_pad(0), site_pad(0) + Vector3i(-3, 0, -3), site_pad(0) + Vector3i(3, 3, 3))
-	objective(2, "进反应堆井，乘上升气流往上", Vector3i(C.x, G1, C.y), Vector3i(C.x + 10, G1, C.y + 10), Vector3i(C.x + 20, G1 + 4, C.y + 20))
+	GameState.set_objective(0, "沿绕塔坡道向上", _v(side_cell(0, -S0 + 1, S0 + 2, G0)))
+	objective(1, "修复断开的坡道", null, site_pad(0) + Vector3i(-3, 0, -3), site_pad(0) + Vector3i(3, 3, 3))
+	objective(2, "沿反应堆井继续上行", Vector3i(C.x, G1, C.y), Vector3i(C.x + 10, G1, C.y + 10), Vector3i(C.x + 20, G1 + 4, C.y + 20))
 	objective(3, "坐空中轨道去塔顶", Vector3i(C.x, G2, C.y - 21), Vector3i(C.x - 4, G2, C.y - 12), Vector3i(C.x + 4, G2 + 4, C.y - 8))
 	_setup_boss()
 

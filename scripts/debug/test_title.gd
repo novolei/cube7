@@ -81,8 +81,54 @@ func _run() -> void:
 		await _click(c)
 		await _wait(0.5)
 		check(t._state == "settings", "鼠标点击菜单项“设置”有效（%s）" % t._state)
+	if "--title-windtrace" in OS.get_cmdline_user_args():
+		await _windtrace(t)
 	if fails.is_empty():
 		print("===== 全部通过 =====")
 	else:
 		print("===== 失败 %d 项 =====" % fails.size())
-	get_tree().quit()
+	Music.stop()
+	for node: Node in Sfx.get_children() + Music.get_children():
+		if node is AudioStreamPlayer or node is AudioStreamPlayer3D:
+			node.call("stop")
+			node.set("stream", null)
+	await _wait(0.15)
+	get_tree().quit(1 if not fails.is_empty() else 0)
+
+func _windtrace(title: Node) -> void:
+	var save_before := SaveGame.data.duplicate(true)
+	title._settings.closed.emit()
+	await _wait(0.4)
+	var entry: Button
+	for child in title._menu.get_children():
+		if child is Button and child.text == "风痕 · 相伴而生":
+			entry = child
+	check(entry != null, "主菜单提供风痕样章入口")
+	if entry == null:
+		return
+	await _move(entry.get_global_rect().get_center())
+	await _click(entry.get_global_rect().get_center())
+	await _wait(2.0)
+	var game := get_tree().current_scene
+	check(game.scene_file_path == "res://scenes/surge_preview.tscn", "实际鼠标点击进入风痕原生场景")
+	if game.scene_file_path != "res://scenes/surge_preview.tscn":
+		return
+	check(game.player.ecology_mode and game.level is AreaWindtrace, "样章启用 Vex 与小群岛")
+	var pause := (game.get_node("Hud") as Hud)._pause
+	pause.open()
+	await _wait(0.4)
+	var back: Button
+	for child in pause._list.get_children():
+		if child is Button and child.text == "返回标题":
+			back = child
+	check(back != null, "样章提供返回标题操作")
+	if back == null:
+		pause.close()
+		return
+	await _move(back.get_global_rect().get_center())
+	await _click(back.get_global_rect().get_center())
+	await _wait(3.0)
+	check(get_tree().current_scene.scene_file_path == "res://scenes/title.tscn" and not get_tree().paused, "实际鼠标操作从暂停返回标题并解除暂停")
+	check(Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "返回标题释放游戏鼠标捕获")
+	check(GameState.player == null and GameState.camera == null, "退出游戏清理全局角色与镜头引用")
+	check(SaveGame.data == save_before, "样章进入与返回保持原存档不变")

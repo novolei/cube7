@@ -29,8 +29,8 @@ func zone(script: GDScript, a: Vector3i, b: Vector3i, props := {}) -> Node:
 	z.global_position = world.to_global(Vector3(lo + hi + Vector3i.ONE) * VoxelWorld.CELL_M * 0.5)
 	return z
 
-func talk(a: Vector3i, b: Vector3i, lines: Array) -> void:
-	zone(TalkTrigger, a, b, {"lines": PackedStringArray(lines)})
+func talk(a: Vector3i, b: Vector3i, lines: Array, delay := 0.0, until := -1) -> void:
+	zone(TalkTrigger, a, b, {"lines": PackedStringArray(lines), "delay_seconds": delay, "until_objective": until})
 
 func cells(a: Vector3i, b: Vector3i) -> Array[Vector3i]:
 	var out: Array[Vector3i] = []

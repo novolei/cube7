@@ -384,8 +384,8 @@ func _logic() -> void:
 	socket.setup(world, Vector3i(FUSE_SOCKET.x, GB - 1, FUSE_SOCKET.z))
 	socket.filled.connect(func() -> void:
 		SaveGame.set_flag("cc_fuse")
-		GameState.say("保险晶插好了——去公园的轨道亮了！")
-		GameState.set_objective(3, "坐空中轨道去公园（中间断了一截，看准了跳过去）", _v(Vector3i(B_C.x + 15, GB, B_C.y - 1))))
+		GameState.say("轨道亮了！中间断了一截，接近缺口时按{jump}跳开；气泡能在空中调整落点。")
+		GameState.set_objective(3, "乘轨道前往公园", _v(Vector3i(B_C.x + 15, GB, B_C.y - 1))))
 	world.item_dropped.connect(func(id: String, pos: Vector3) -> void:
 		if id == "crystal" and not is_instance_valid(fuse) and not socket.done:
 			fuse = UsableItem.new()
@@ -458,16 +458,21 @@ func _logic() -> void:
 		"小心那些探照灯——锈哨兵。被光照到会拉警报，放出锈蜂。躲开光，从背后撞它。",
 	])
 	talk(Vector3i(B_C.x + 9, GB, B_C.y - 5), Vector3i(B_C.x + 15, GB + 4, B_C.y + 2), [
-		"去公园的轨道断电了。车站前的插槽缺一块保险晶……大穹顶里好像有。穹顶的玻璃要加速才撞得开。",
+		"车站前的插槽空了。轨道缺一块保险晶，集市的居民也许还记得它放在哪里。",
+	])
+	talk(Vector3i(B_C.x + 9, GB, B_C.y - 5), Vector3i(B_C.x + 15, GB + 4, B_C.y + 2), [
+		"大穹顶以前就是存放保险晶的地方。那层玻璃，和温室的一样。",
+	], 30.0, 1)
+	talk(Vector3i(C_C.x - 3, GC, C_C.y - 14), Vector3i(C_C.x + 3, GC + 4, C_C.y - 10), [
+		"桥被风吹偏了。桥上有阵风，轻的形态容易被吹走。",
 	])
 	talk(Vector3i(C_C.x - 3, GC, C_C.y - 14), Vector3i(C_C.x + 3, GC + 4, C_C.y - 10), [
-		"桥被风吹得转偏了。滚到桥中间，撞一下那个发光的转钮，桥会转 90°。",
-		"桥上有阵风——气泡形态太轻，小心被吹下去。",
-	])
+		"桥中间的转钮还亮着。碰一下，它会转一个直角。",
+	], 28.0, 5)
 	# 目标
 	GameState.set_objective(0, "坐空中轨道去集市", _v(Vector3i(A_C.x + 6, GA, A_C.y - 1)))
-	objective(1, "给去公园的轨道找一块保险晶（看看大穹顶里）", DOME_B, Vector3i(B_C.x - 16, GB, B_C.y - 4), Vector3i(B_C.x - 10, GB + 4, B_C.y + 6))
-	objective(4, "去公园北边，让旋转桥接上议会广场", Vector3i(HUB.x, GD, HUB.y), Vector3i(C_C.x - 14, GC, C_C.y + 1), Vector3i(C_C.x - 8, GC + 4, C_C.y + 7))
+	objective(1, "让去公园的车站恢复供电", null, Vector3i(B_C.x - 16, GB, B_C.y - 4), Vector3i(B_C.x - 10, GB + 4, B_C.y + 6))
+	objective(4, "寻找通往议会广场的路", Vector3i(C_C.x, GC, C_C.y - 12), Vector3i(C_C.x - 14, GC, C_C.y + 1), Vector3i(C_C.x - 8, GC + 4, C_C.y + 7))
 	objective(5, "去议会广场", Vector3i(D_C.x + 10, GD, D_C.y), Vector3i(HUB.x - 3, GD, HUB.y - 3), Vector3i(HUB.x + 3, GD + 4, HUB.y + 3))
 	_setup_boss()
 	coin_line(Vector3i(A_C.x - 6, GA, A_C.y + 2), Vector3i(A_C.x + 4, GA, A_C.y - 1), 5)

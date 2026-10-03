@@ -34,6 +34,7 @@ const MENU_W := 420.0
 const ANGLE0 := 0.15     ## 镜头构图的基准角度：只在附近缓慢摆动，不整圈环绕
 
 func _ready() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	# 命令行测试直接进游戏
 	var args := Array(OS.get_cmdline_user_args())
 	if args.any(func(a: String) -> bool: return a.begins_with("--autotest") or a.begins_with("--level") or a.begins_with("--shots") or a == "--probe"):
@@ -44,7 +45,8 @@ func _ready() -> void:
 		var shots := Node.new()
 		shots.set_script(load("res://scripts/debug/ui_shots.gd"))
 		get_tree().root.add_child.call_deferred(shots)
-	if args.any(func(a: String) -> bool: return a.begins_with("--titletest")):
+	if args.any(func(a: String) -> bool: return a.begins_with("--titletest")) and not get_tree().has_meta(&"title_test_running"):
+		get_tree().set_meta(&"title_test_running", true)
 		var tt := Node.new()
 		tt.set_script(load("res://scripts/debug/test_title.gd"))
 		get_tree().root.add_child.call_deferred(tt)
@@ -495,6 +497,9 @@ func _show_menu() -> void:
 	var ng := _item("开始旅程", func() -> void: _open_slots("new"))
 	if first == null:
 		first = ng
+	_item("风痕 · 相伴而生", func() -> void:
+		Music.stop()
+		Flow.goto("res://scenes/surge_preview.tscn", "debug"))
 	var reached := 0
 	var best_up := {}
 	for i in SaveGame.SLOTS:

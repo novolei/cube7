@@ -420,15 +420,17 @@ func _logic() -> void:
 		"前面是潮汐浅滩。步道只在低潮时露出来——汽笛一响就要涨潮了，赶紧躲到礁柱上。",
 	])
 	talk(Vector3i(C_C.x - 22, G, C_C.y - 4), Vector3i(C_C.x - 16, G + 4, C_C.y + 8), [
-		"沉船墓场。这里的锈铁比别处的都厚——普通冲刺撞不开，要原地蓄力再冲。",
-		"去灯塔的栈桥断了。在这儿多拆点东西，攒够物质就能把它重建起来。",
+		"沉船墓场。这里的锈铁很厚，停下来按住{ability}蓄力，松开再冲。",
 	])
 	talk(Vector3i(PIER.x - 3, G, PIER.y - 3), Vector3i(PIER.x + 3, G + 4, PIER.y + 3), [
-		"栈桥的蓝图在这儿。滚进光圈就能重建——需要 150 个重构物质。",
+		"栈桥只剩蓝图了。对面那截灯塔还在等我们。",
 	])
+	talk(Vector3i(PIER.x - 3, G, PIER.y - 3), Vector3i(PIER.x + 3, G + 4, PIER.y + 3), [
+		"拆下来的锈铁也能用来重构。蓝图旁的光圈会显示还缺多少物质。",
+	], 32.0, 1)
 	# 目标
-	GameState.set_objective(0, "穿过潮汐浅滩去沉船墓场（汽笛响了就躲到礁柱上）", _v(Vector3i(C_C.x - 18, G, C_C.y + 4)))
-	objective(1, "攒够重构物质，重建去灯塔岛的栈桥（◆150）", Vector3i(PIER.x + 1, G, PIER.y), Vector3i(C_C.x - 22, G, C_C.y - 4), Vector3i(C_C.x - 16, G + 4, C_C.y + 8))
+	GameState.set_objective(0, "穿过浅滩，前往沉船墓场", _v(Vector3i(C_C.x - 18, G, C_C.y + 4)))
+	objective(1, "修复通往灯塔岛的栈桥", Vector3i(PIER.x + 1, G, PIER.y), Vector3i(C_C.x - 22, G, C_C.y - 4), Vector3i(C_C.x - 16, G + 4, C_C.y + 8))
 	_setup_boss()
 
 var boss_started := false

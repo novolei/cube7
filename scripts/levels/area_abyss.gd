@@ -552,9 +552,11 @@ func _logic() -> void:
 		"前面那段石板全是裂纹——滚上去它就会塌。别停下，一口气冲过去！",
 	])
 	talk(Vector3i(44, L1, 60), Vector3i(52, L1 + 4, 76), [
-		"那块会发光的大水晶是发射晶，它一直在朝北射光。看到那两面晶面镜了吗？撞一下镜子，它就转 45°。",
-		"把光引到对面东边的受光晶上——受光晶一亮，电就会顺着管线往下流。",
+		"撞一下晶面镜，它会转 45°。光束会跟着变，先看看它照到了哪里。",
 	])
+	talk(Vector3i(44, L1, 60), Vector3i(52, L1 + 4, 76), [
+		"受光晶底下的管线一直通到晶洞门。光走的路，不一定是最短的那条。",
+	], 32.0, 2)
 	talk(Vector3i(76, L1, 50), Vector3i(86, L1 + 4, 60), [
 		"对面炮台的锈弹能被气浪打回去。它要是炸到镜子旁边……小心别被波及。",
 	])
@@ -570,7 +572,7 @@ func _logic() -> void:
 	# 目标
 	GameState.set_objective(0, "去天坑边，找到下去的路", _v(ge))
 	objective(1, "沿螺旋栈道下到第一层环台", _spiral_cell(150.0, 19.0), Vector3i(ge.x - 3, TOP - 3, ge.z - 3), Vector3i(ge.x + 3, TOP + 3, ge.z + 3))
-	objective(2, "转动晶面镜，把光引到东边的受光晶上", LENS, Vector3i(44, L1, 60), Vector3i(52, L1 + 4, 76))
+	objective(2, "让下层的晶洞门恢复供电", null, Vector3i(44, L1, 60), Vector3i(52, L1 + 4, 76))
 	objective(5, "穿过晶洞，找到往下的路", Vector3i(108, L2, 71), Vector3i(88, L2, 58), Vector3i(92, L2 + 4, 66))
 	objective(6, "去坑底", Vector3i(86, FLOOR, 64), Vector3i(104, FLOOR, TUNNEL_Z.x - 2), Vector3i(111, FLOOR + 4, 74))
 	# Boss

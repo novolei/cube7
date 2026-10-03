@@ -68,8 +68,9 @@ func column(x: int, z: int, bottom: int, top: int, t_top: int, t_mid: int, t_dee
 func _v(c: Vector3i) -> Vector3:
 	return world.voxel_top(c + Vector3i.DOWN)
 
-func objective(i: int, text: String, cell: Vector3i, a: Vector3i, b: Vector3i) -> void:
-	zone(ObjectiveZone, a, b, {"index": i, "text": text, "marker": _v(cell)})
+## cell 可为 null：抵达谜题后保留目标文字，不标出解法的位置。
+func objective(i: int, text: String, cell: Variant, a: Vector3i, b: Vector3i) -> void:
+	zone(ObjectiveZone, a, b, {"index": i, "text": text, "marker": Vector3.INF if cell == null else _v(cell)})
 
 func fragment(id: String, cell: Vector3i, text: String) -> void:
 	var f := zone(MemoryFragment, cell, cell + Vector3i(0, 1, 0), {"log_text": text})

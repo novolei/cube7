@@ -16,5 +16,5 @@ func _on_player_entered() -> void:
 	Sfx.play("level_clear", Vector3.INF, 0.0, 0.0)
 	Music.duck(4.0, 0.1)
 	GameState.say(line)
-	await get_tree().create_timer(4.5).timeout
+	# The clear overlay pauses play immediately, before momentum carries PIX off the island.
 	GameState.level_cleared.emit()

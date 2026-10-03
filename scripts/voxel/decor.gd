@@ -5,7 +5,7 @@ extends Node3D
 
 var world: VoxelWorld
 var _mm := {}           # 名称 -> MultiMeshInstance3D
-var _slots := {}        # 体素坐标（装饰所在的地面方块）-> [名称, 下标]
+var _slots := {}        # 地面格 -> [名称, 下标, 原始变换]，重构时复用
 var _pending := {}      # 名称 -> Array[Transform3D]
 var _pending_cells := {}
 
@@ -18,6 +18,7 @@ const KINDS := {
 }
 
 func setup(w: VoxelWorld) -> void:
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	world = w
 	world.cell_changed.connect(_on_block_changed)
 
@@ -42,7 +43,7 @@ func commit() -> void:
 		mm.instance_count = list.size()
 		for i in list.size():
 			mm.set_instance_transform(i, list[i])
-			_slots[_pending_cells[kind][i]] = [kind, i]
+			_slots[_pending_cells[kind][i]] = [kind, i, list[i]]
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -52,11 +53,19 @@ func commit() -> void:
 	_pending_cells.clear()
 
 func _on_block_changed(p: Vector3i, _o: int, n: int) -> void:
-	if n == Blocks.AIR and _slots.has(p):
+	if _slots.has(p) and (n == Blocks.AIR or n == Blocks.GRASS):
 		var slot: Array = _slots[p]
-		_slots.erase(p)
 		var mm: MultiMesh = (_mm[slot[0]] as MultiMeshInstance3D).multimesh
-		mm.set_instance_transform(slot[1], Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+		# Reuse the original tuft when its ground returns in the reconstruction wave.
+		mm.set_instance_transform(slot[1], slot[2] if n == Blocks.GRASS else Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+
+func _process(_delta: float) -> void:
+	if not is_instance_valid(GameState.player):
+		return
+	var player_at := GameState.player.get_global_transform_interpolated().origin
+	for kind in _mm:
+		var material := (_mm[kind] as MultiMeshInstance3D).multimesh.mesh.surface_get_material(0) as ShaderMaterial
+		material.set_shader_parameter("player_position", player_at)
 
 func _make_mesh(kind: String) -> ArrayMesh:
 	var mat := ShaderMaterial.new()

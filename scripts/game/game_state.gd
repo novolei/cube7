@@ -4,7 +4,7 @@ extends Node
 signal coins_changed(value: int)
 signal energy_changed(value: int)
 signal shield_changed(value: int)
-signal nova_say(text: String)
+signal nova_say(text: String, context: Area3D)
 @warning_ignore("unused_signal")
 signal form_changed(index: int)
 signal device_changed(kind: String)
@@ -97,9 +97,9 @@ var objective_index := -1
 var objective_text := ""
 var objective_pos := Vector3.INF
 
-## 推进目标：只会往前推进（重复触发旧目标会被忽略）
+## 目标阶段不倒退；同阶段可在机关完成后刷新文案与目的地。
 func set_objective(index: int, text: String, pos := Vector3.INF) -> void:
-	if index <= objective_index:
+	if index < objective_index or (index == objective_index and text == objective_text and pos == objective_pos):
 		return
 	objective_index = index
 	objective_text = text
@@ -224,8 +224,8 @@ func rumble(weak: float, strong: float, secs: float) -> void:
 	for d in Input.get_connected_joypads():
 		Input.start_joy_vibration(d, clampf(weak * k, 0.0, 1.0), clampf(strong * k, 0.0, 1.0), secs)
 
-func say(text: String) -> void:
-	nova_say.emit(text)
+func say(text: String, context: Area3D = null) -> void:
+	nova_say.emit(text, context)
 
 # ---------------------------------------------------------------- 输入设备识别
 
@@ -279,9 +279,9 @@ func _input(event: InputEvent) -> void:
 		device_changed.emit(device)
 
 const GLYPHS := {
-	"ps": {"jump": "✕", "ability": "□", "grab": "○", "view_toggle": "△", "boost": "R2", "form": "L1/R1", "form_direct": "十字键 ←↑→", "respawn": "Create", "pause": "Options", "move": "左摇杆", "camera": "右摇杆", "ui_accept": "✕", "ui_cancel": "○"},
-	"xbox": {"jump": "A", "ability": "X", "grab": "B", "view_toggle": "Y", "boost": "RT", "form": "LB/RB", "form_direct": "十字键 ←↑→", "respawn": "View", "pause": "Menu", "move": "左摇杆", "camera": "右摇杆", "ui_accept": "A", "ui_cancel": "B"},
-	"kbm": {"jump": "空格", "ability": "左键", "grab": "E", "view_toggle": "V", "boost": "Shift", "form": "滚轮", "form_direct": "1-3", "respawn": "R", "pause": "Esc", "move": "WASD", "camera": "鼠标", "ui_accept": "Enter", "ui_cancel": "Esc"},
+	"ps": {"jump": "✕", "ability": "□", "grab": "○", "view_toggle": "△", "view_recenter": "R3", "boost": "R2", "form": "L1/R1", "form_direct": "十字键 ←↑→", "respawn": "Create", "pause": "Options", "move": "左摇杆", "camera": "右摇杆", "ui_accept": "✕", "ui_cancel": "○"},
+	"xbox": {"jump": "A", "ability": "X", "grab": "B", "view_toggle": "Y", "view_recenter": "按右摇杆", "boost": "RT", "form": "LB/RB", "form_direct": "十字键 ←↑→", "respawn": "View", "pause": "Menu", "move": "左摇杆", "camera": "右摇杆", "ui_accept": "A", "ui_cancel": "B"},
+	"kbm": {"jump": "空格", "ability": "左键", "grab": "E", "view_toggle": "V", "view_recenter": "中键", "boost": "Shift", "form": "滚轮", "form_direct": "1-3", "respawn": "R", "pause": "Esc", "move": "WASD", "camera": "鼠标", "ui_accept": "Enter", "ui_cancel": "Esc"},
 }
 
 func glyph(action: String) -> String:

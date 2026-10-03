@@ -176,7 +176,8 @@ func _run() -> void:
 	check(fence != null and fence.is_powered, "储料场门口的电网通着电")
 	# 钻断铜线
 	P.apply_form(MorphBall.DRILL, false)
-	await tp(Vector3i(72, G, 54))
+	# x=72 是实体灯柱；在导线上没有灯柱的 x=74 测真正的向下钻掘。
+	await tp(Vector3i(74, G, 54))
 	await go(Vector2.ZERO, 1.5, true)
 	await wait(0.4)
 	check(fence != null and not fence.is_powered, "往下钻断铜线：电网断电")
@@ -296,4 +297,4 @@ func _run() -> void:
 		print("===== 失败 %d 项 =====" % fails.size())
 		for f in fails:
 			print("   - " + f)
-	get_tree().quit()
+	get_tree().quit(1 if not fails.is_empty() else 0)

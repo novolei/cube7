@@ -5,7 +5,7 @@ extends CanvasLayer
 ##   右上：当前目标，直接排在世界的留白里
 ##   下方中间：NOVA 对话（雾色衬底 + 名牌 + 打字机 + 语音拟声）
 ##   左下：已解锁的形态  右下：只显示当前有用的按键提示
-##   中央：区域标题卡；右下角：自动保存提示
+##   中央：区域标题卡；目标下方：自动保存提示
 
 var _root: Control
 var _coins: Label
@@ -27,7 +27,7 @@ var _form_name: Label
 var _prompts: VBoxContainer
 var _title_card: VBoxContainer
 var _save_toast: HBoxContainer
-var _queue: PackedStringArray = []
+var _queue: Array[Dictionary] = []
 var _nova_time := 0.0
 var _chars := 0.0
 var _last_char := 0
@@ -39,6 +39,8 @@ var _stats_pop := false
 var _pending_combo := 0
 var _title_tween: Tween
 var _combo_tween: Tween
+var _nova_tween: Tween
+var _save_tween: Tween
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -91,7 +93,7 @@ func _ready() -> void:
 	GameState.form_changed.connect(func(_i: int) -> void: _refresh_forms())
 	GameState.form_unlocked.connect(_on_form_unlocked)
 	GameState.device_changed.connect(func(_k: String) -> void: _refresh_prompts())
-	GameState.nova_say.connect(func(t: String) -> void: _queue.append(t))
+	GameState.nova_say.connect(func(t: String, context: Area3D) -> void: _queue.append({"text": t, "context": context}))
 	GameState.objective_changed.connect(_on_objective)
 	SaveGame.saved.connect(_on_saved)
 	_refresh_stats()
@@ -174,6 +176,11 @@ func _show_clear() -> void:
 		return
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var visible_controls: Array[CanvasItem] = []
+	for child in _root.get_children():
+		if child is CanvasItem and child.visible:
+			visible_controls.append(child)
+			child.hide()
 	var dim := ColorRect.new()
 	dim.color = Color(0.13, 0.17, 0.17, 0.42)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -222,6 +229,8 @@ func _show_clear() -> void:
 	stay.pressed.connect(func() -> void:
 		dim.queue_free()
 		p.queue_free()
+		for child in visible_controls:
+			child.show()
 		get_tree().paused = false
 		if DisplayServer.get_name() != "headless":
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED)
@@ -252,7 +261,9 @@ func _show_clear() -> void:
 
 func _build_stats() -> void:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.panel(Color.TRANSPARENT, Color.TRANSPARENT, 0, 0, 0))
+	var style := UIKit.panel(Color.TRANSPARENT, Color.TRANSPARENT, 0, 0, 0)
+	style.shadow_size = 0
+	p.add_theme_stylebox_override("panel", style)
 	UIKit.place(p, Vector4(0, 0, 0, 0), Vector4(38, 32, 310, 32))
 	_root.add_child(p)
 	var v := VBoxContainer.new()
@@ -399,10 +410,10 @@ func _build_title_card() -> void:
 func _build_save_toast() -> void:
 	_save_toast = HBoxContainer.new()
 	_save_toast.add_theme_constant_override("separation", 8)
-	UIKit.place(_save_toast, Vector4(1, 0, 1, 0), Vector4(-220, -60, -30, -30))
+	UIKit.place(_save_toast, Vector4(1, 0, 1, 0), Vector4(-240, 158, -38, 188))
 	_save_toast.alignment = BoxContainer.ALIGNMENT_END
-	_save_toast.add_child(UIIcon.make("save", UIKit.ACCENT, 22))
-	_save_toast.add_child(UIKit.outline(UIKit.label("已自动保存", 18, UIKit.TEXT, true), 4))
+	_save_toast.add_child(UIIcon.make("save", UIKit.ACCENT, 16))
+	_save_toast.add_child(UIKit.outline(UIKit.label("旅程已记录", 18, UIKit.TEXT), 2))
 	_save_toast.modulate.a = 0.0
 	_root.add_child(_save_toast)
 
@@ -429,7 +440,7 @@ func _refresh_forms() -> void:
 	var cur := p.form if p else 0
 	var unlocked_count := 0
 	for i in _form_badges.size():
-		var f: Dictionary = MorphBall.FORMS[i]
+		var f: Dictionary = p.form_info(i) if p else MorphBall.FORMS[i]
 		var pc := _form_badges[i]
 		var unlocked: bool = GameState.unlocked_forms[i]
 		if unlocked:
@@ -449,7 +460,8 @@ func _refresh_forms() -> void:
 			c.add_child(UIIcon.make("form_" + f.id, ink if active else Color(ink, 0.75), 30 if active else 22))
 		else:
 			c.add_child(UIIcon.make("lock", Color(UIKit.DIM, 0.8), 18))
-	_form_name.text = MorphBall.FORMS[cur].name if p else ""
+	_form_name.text = p.form_info(cur).name if p else ""
+	_nova_name.text = "E C H O" if p and p.ecology_mode else "N O V A"
 	var hint: HBoxContainer = _forms_row.get_parent().get_node("Hint")
 	for ch in hint.get_children():
 		ch.queue_free()
@@ -466,9 +478,9 @@ func _refresh_prompts() -> void:
 	var p := GameState.player as MorphBall
 	_prompt_idle = 0.0
 	if p:
-		_prompts.add_child(UIKit.prompt("ability", MorphBall.FORMS[p.form].ability, 21))
+		_prompts.add_child(UIKit.prompt("ability", p.form_info(p.form).ability, 21))
 	if GameState.allow_jump and p:
-		_prompts.add_child(UIKit.prompt("jump", MorphBall.FORMS[p.form].jump_name, 21))
+		_prompts.add_child(UIKit.prompt("jump", p.form_info(p.form).jump_name, 21))
 	if _grab_hint != "":
 		var gp := UIKit.prompt("grab", _grab_hint, 28)
 		gp.modulate = UIKit.ACCENT2
@@ -480,7 +492,9 @@ func _on_form_unlocked(i: int) -> void:
 	_refresh_forms()
 	var pc := _form_badges[i]
 	UIKit.pulse(pc, 1.08)
-	show_area_title("新形态", MorphBall.FORMS[i].name, MorphBall.FORMS[i].ability)
+	var p := GameState.player as MorphBall
+	var info: Dictionary = p.form_info(i) if p else MorphBall.FORMS[i]
+	show_area_title("新形态", info.name, info.ability)
 
 func _on_objective(_i: int, text: String, _pos: Vector3) -> void:
 	_obj_text.text = text
@@ -493,10 +507,12 @@ func _on_objective(_i: int, text: String, _pos: Vector3) -> void:
 		Sfx.play("checkpoint", Vector3.INF, -10.0, 0.0)
 
 func _on_saved() -> void:
-	var tw := create_tween()
-	tw.tween_property(_save_toast, "modulate:a", 1.0, 0.25)
-	tw.tween_interval(1.6)
-	tw.tween_property(_save_toast, "modulate:a", 0.0, 0.5)
+	if _save_tween and _save_tween.is_valid():
+		_save_tween.kill()
+	_save_tween = create_tween()
+	_save_tween.tween_property(_save_toast, "modulate:a", 1.0, 0.25)
+	_save_tween.tween_interval(1.6)
+	_save_tween.tween_property(_save_toast, "modulate:a", 0.0, 0.5)
 
 ## 屏幕中央的大标题（进入区域、解锁形态）
 func show_area_title(small: String, big: String, sub := "") -> void:
@@ -560,7 +576,11 @@ func _process(delta: float) -> void:
 		var hint := ""
 		var p := GameState.player as MorphBall
 		if p:
-			if p.is_holding():
+			if p.ecology_mode:
+				var map := p.get_parent().get("level") as AreaWindtrace
+				if map and map.swarm:
+					hint = map.context_hint()
+			elif p.is_holding():
 				hint = "投掷"
 			else:
 				for n in get_tree().get_nodes_in_group("usable_item"):
@@ -570,9 +590,15 @@ func _process(delta: float) -> void:
 		if hint != _grab_hint:
 			_grab_hint = hint
 			_refresh_prompts()
-	if _nova_time <= 0.0 and not _queue.is_empty():
-		var t := _fmt_rich(_queue[0])
-		_queue.remove_at(0)
+	while _nova_time <= 0.0 and not _queue.is_empty():
+		var entry: Dictionary = _queue.pop_front()
+		var context = entry.context
+		# Finish the spoken line, then discard advice for areas already left behind.
+		if typeof(context) == TYPE_OBJECT and (not is_instance_valid(context) or not context.overlaps_body(GameState.player)):
+			continue
+		if context is TalkTrigger and context.until_objective >= 0 and GameState.objective_index > context.until_objective:
+			continue
+		var t := _fmt_rich(entry.text)
 		_nova_text.text = t
 		t = _nova_text.get_parsed_text()
 		_nova_text.visible_characters = 0
@@ -582,7 +608,10 @@ func _process(delta: float) -> void:
 		Music.duck(_nova_time, 0.55)
 		_nova.visible = true
 		_nova.modulate.a = 0.0
-		create_tween().tween_property(_nova, "modulate:a", 1.0, 0.2)
+		if _nova_tween and _nova_tween.is_valid():
+			_nova_tween.kill()
+		_nova_tween = create_tween()
+		_nova_tween.tween_property(_nova, "modulate:a", 1.0, 0.2)
 	if _nova_time > 0.0:
 		_nova_time -= delta
 		_chars += delta * 38.0
@@ -596,6 +625,8 @@ func _process(delta: float) -> void:
 				Sfx.play("voice_nova", Vector3.INF, -12.0, 0.18)
 		_last_char = n
 		if _nova_time <= 0.0:
-			var tw := create_tween()
-			tw.tween_property(_nova, "modulate:a", 0.0, 0.25)
-			tw.tween_callback(func() -> void: _nova.visible = _nova_time > 0.0)
+			if _nova_tween and _nova_tween.is_valid():
+				_nova_tween.kill()
+			_nova_tween = create_tween()
+			_nova_tween.tween_property(_nova, "modulate:a", 0.0, 0.25)
+			_nova_tween.tween_callback(func() -> void: _nova.visible = _nova_time > 0.0)

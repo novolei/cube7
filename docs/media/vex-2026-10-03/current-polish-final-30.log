@@ -1,0 +1,81 @@
+Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+Vulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 5090
+
+[godot_ai game_helper] registered mcp capture (debugger active=false, logger=true)
+[VoxelWorld] 自然化 119 ms（崩掉 855 个体素）
+[VoxelWorld] 网格生成 1796 ms（18432 个小区块）
+[VoxelWorld] 全部区块生成耗时 2098 ms
+[Vista] 远景全部生成完毕（1.0 秒，69 万个三角形）
+[PASS] Real pause input opens the menu
+[PASS] Controller navigation opens shared settings
+[PASS] Return path restores gameplay
+[PASS] Rapid UI retargets reuse one spring
+[PASS] Spring settles identically at 30/144 Hz
+[PASS] Reduced motion removes UI zoom
+[PASS] A 100-sound burst creates no audio nodes
+[PASS] Movement and world have separate mix buses
+[PASS] Master peak limiter is active
+[PASS] Nova rests on a real physics platform
+[PASS] Camera snaps cleanly after a long teleport
+[PASS] A physical checkpoint records its floor instead of its trigger center
+[PASS] Checkpoint respawn restores ground control within 200 ms
+[PASS] Save feedback appears inside the viewport below the current objective
+[PASS] Entering a real area delivers its contextual hint
+[PASS] Leaving an area lets the current sentence finish
+[PASS] Stale area hints are skipped while narrative dialogue survives
+[PASS] Freed dialogue areas cannot leave dangling queued hints
+[PASS] Puzzle hints leave time for independent observation
+[PASS] Leaving and returning cannot reuse an earlier hint timer
+[PASS] A sustained visit delivers one delayed clue
+[PASS] Revisiting a delivered hint does not repeat it
+[PASS] Advancing the objective discards queued puzzle advice
+[PASS] Solving the stage while waiting cancels its delayed hint
+[PASS] Puzzle hint timers stop while gameplay is paused
+[PASS] The remaining hint delay resumes after returning to play
+[PASS] A stage can refresh its instructions without regressing to an old objective
+[PASS] Reduced motion freezes the world objective ornament
+[PASS] Completing the chapter removes the world objective beam
+[PASS] Batched foliage follows the interpolated player pose
+[PASS] Grab feedback covers the full reachable traction range
+[PASS] Real grab input picks up a hinted item outside the old 2.8m prompt range
+[PASS] The same input releases and physically throws the held item
+[PASS] Coyote jump works after rolling off an edge
+[PASS] Buffered input jumps on physical landing
+[PASS] Releasing jump shortens the rising arc
+[PASS] Form-specific air jumps preserve level gates
+[PASS] Deliberate countersteering brakes actual rolling momentum
+[PASS] Releasing movement reduces actual ground overshoot
+[PASS] A committed dash keeps its momentum on release
+[PASS] A quarter stick movement stays slower than a full movement
+[PASS] Pushing a tall wall for 4.6 seconds cannot create an unrequested jump or teleport
+[PASS] Respawn clears charged attacks and jump state
+[PASS] A short respawn immediately restores a steady camera
+[PASS] Recenter input gently brings the view behind the rolling direction
+[PASS] Manual orbit immediately takes over a recenter transition
+[PASS] Ctrl plus wheel adjusts the camera without switching forms
+[PASS] The ordinary wheel retains its form-switching input
+[PASS] A physical obstruction keeps the camera in front of a tall wall
+[PASS] Removing an obstruction reopens the view without an instant distance jump
+[PASS] The unobstructed view returns to its configured framing
+[PASS] Rapid form changes settle at the correct visual size
+[PASS] Nearby butterflies respond gently to the player
+[PASS] Two touch fingers move and jump inside the safe area
+[PASS] Releasing one duplicate touch preserves the other finger
+[PASS] Jump release does not cancel the movement finger
+[PASS] Losing focus releases all touch actions
+[PASS] Any paused overlay hides touch controls and releases held buttons
+[PASS] Falling chunk collision merges adjacent cells without filling holes
+[PASS] Merged native collision remains solid on cells and open through a gap
+[PASS] Destroyed foliage returns to its original batch slot when the ground is rebuilt
+[PASS] Sphere destruction respects its lower limit and indestructible materials
+[PASS] A small disconnected component can detach
+[PASS] An anchored component remains supported
+[PASS] Forward drilling opens the wall while preserving a drillable foundation
+[PASS] Render-rate reconstruction waits instead of building into the player
+[PASS] Reconstruction commits its voxel and completes after the player moves clear
+[PASS] Budgeted partial rebuilds drain and commit every dirty group
+[PASS] Surviving terrain retains physical collision after a partial rebuild
+[PASS] A real goal immediately pauses movement in its clear overlay before an overshoot
+[PASS] The clear composition removes gameplay HUD and action hints
+[PASS] Controller continue-exploring restores gameplay and its HUD
+POLISH CHECK: 0 failures

@@ -32,12 +32,65 @@ const IMPACT_MIN := 1.8
 ## 主角整体缩放：体素改成 0.25 米后，主角相对世界显得更小巧
 const BODY := 0.78
 const DASH_SPEED := 11.5
-const GRAB_RANGE := 2.8
+const GRAB_RANGE := 4.5
 
 var form: int = BALL
 var form_locked := false
 var grounded := false
 var world: VoxelWorld
+var ecology_mode := false
+var rooting := false
+var _ecology_time := 0.0
+var _ecology_materials: Array[ShaderMaterial] = []
+
+const ECOLOGY_FORMS := [
+	{"id": "ball", "name": "孢核", "ability": "蓄势滚动", "jump_name": "轻跃 · 按住更高", "color": Color("e6d6a6")},
+	{"id": "drill", "name": "根息", "ability": "按住 · 扎根共鸣", "jump_name": "低跃", "color": Color("a4b18b")},
+	{"id": "bubble", "name": "伞息", "ability": "借风舒展", "jump_name": "再跃 · 按住滑翔", "color": Color("c7d0ab")},
+]
+
+func form_info(i: int) -> Dictionary:
+	return ECOLOGY_FORMS[i] if ecology_mode else FORMS[i]
+
+func enable_ecology() -> void:
+	if ecology_mode:
+		return
+	ecology_mode = true
+	_drill_bit = null
+	if _drill_fx:
+		_drill_fx.queue_free()
+		_drill_fx = null
+	for n in _visuals:
+		n.hide()
+		n.queue_free()
+	_visuals.clear()
+	for i in 3:
+		var n := SporeVisual.make(i)
+		_visual_root.add_child(n)
+		_visuals.append(n)
+		_ecology_materials.append(n.material_override as ShaderMaterial)
+	for n in _face.get_children():
+		n.queue_free()
+	_eyes.clear()
+	_eye_mat = StandardMaterial3D.new()
+	_eye_mat.albedo_color = Color("35463a")
+	_eye_mat.roughness = 0.9
+	for x in [-0.085, 0.085]:
+		var eye := MeshInstance3D.new()
+		var shape := CapsuleMesh.new()
+		shape.radius = 0.022
+		shape.height = 0.078
+		shape.radial_segments = 8
+		shape.rings = 3
+		eye.mesh = shape
+		eye.material_override = _eye_mat
+		eye.position = Vector3(x, 0.12, -0.458)
+		_face.add_child(eye)
+		_eyes.append(eye)
+	_antenna = SporeVisual.crown()
+	_face.add_child(_antenna)
+	_ecology_materials.append((_antenna as MeshInstance3D).material_override as ShaderMaterial)
+	apply_form(form, false)
 
 ## 自动测试 / 调试用的输入覆盖
 var debug_override := false
@@ -132,6 +185,10 @@ func _ready() -> void:
 	world = get_tree().get_first_node_in_group("voxel_world") as VoxelWorld
 	apply_form(BALL, false)
 
+func _exit_tree() -> void:
+	if GameState.player == self:
+		GameState.player = null
+
 # ---------------------------------------------------------------- 输入
 
 func _move_input() -> Vector2:
@@ -174,6 +231,8 @@ func _camera_dir(inp: Vector2) -> Vector3:
 	return right * inp.x + forward * (-inp.y)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.ctrl_pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		return # Ctrl + wheel changes camera distance; the bare wheel still changes form.
 	if event.is_action_pressed("form_next"):
 		cycle_form(1)
 	elif event.is_action_pressed("form_prev"):
@@ -181,7 +240,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	for i in FORMS.size():
 		if event.is_action_pressed("form_%d" % (i + 1)):
 			request_form(i)
-	if event.is_action_pressed("grab"):
+	if event.is_action_pressed("grab") and not ecology_mode:
 		toggle_grab()
 	if event.is_action_pressed("respawn"):
 		GameState.respawn()
@@ -230,6 +289,7 @@ func apply_form(i: int, fx: bool) -> void:
 	for k in _visuals.size():
 		_visuals[k].visible = k == i
 	_pounding = false
+	rooting = false
 	_charging = false
 	_bubble_hold = -1.0
 	if _charge_node:
@@ -325,17 +385,12 @@ func _step_assist(dir: Vector3, delta: float) -> void:
 var allow_step := true
 
 # ---------------------------------------------------------------- 自动脱困
-## 1. 球心卡进了实心方块里（被重构/落下的方块压住）→ 往上找空地挪出去
-## 2. 一直推摇杆，1.2 秒几乎没动 → 自动小跳一下（卡在缝里、钻头掉进深坑）
-## 3. 连续三次还出不去 → 挪到上方最近的空地；实在不行回检查点
-var _stuck_t := 0.0
-var _stuck_pos := Vector3.ZERO
-var _stuck_hops := 0
+## 只处理真正被方块掩埋的情况。顶住墙壁不替玩家跳跃，也不越过谜题障碍。
 var _buried_t := 0.0
 
-func _unstick(delta: float, dir: Vector3) -> void:
-	if world == null or freeze or get_meta("riding", false) or _charging or debug_override and debug_input == Vector2.ZERO:
-		_stuck_t = 0.0
+func _unstick(delta: float) -> void:
+	if world == null or freeze or get_meta("riding", false) or _charging:
+		_buried_t = 0.0
 		return
 	var r: float = FORMS[form].radius * BODY
 	# 真的被埋住：球心和上下左右都是实心，并且持续了 0.3 秒（钻头钻隧道时不算）
@@ -348,28 +403,6 @@ func _unstick(delta: float, dir: Vector3) -> void:
 	_buried_t = _buried_t + delta if buried else 0.0
 	if _buried_t > 0.3:
 		_buried_t = 0.0
-		_pop_free()
-		return
-	if dir.length() < 0.3 or _ability_held():
-		_stuck_t = 0.0
-		_stuck_hops = 0
-		return
-	if global_position.distance_to(_stuck_pos) > 0.25:
-		_stuck_pos = global_position
-		_stuck_t = 0.0
-		return
-	_stuck_t += delta
-	if _stuck_t < 1.2:
-		return
-	_stuck_t = 0.0
-	_stuck_hops += 1
-	if _stuck_hops <= 2:
-		linear_velocity = dir.normalized() * 2.5 + Vector3.UP * (5.5 if form != DRILL else 6.5)
-		_no_snap = 0.3
-		launched(0.3)
-		Sfx.play("jump_" + str(FORMS[form].id), global_position, -8.0, 0.05)
-	else:
-		_stuck_hops = 0
 		_pop_free()
 
 func _pop_free() -> void:
@@ -428,7 +461,7 @@ func _physics_process(delta: float) -> void:
 		var vh := Vector3(linear_velocity.x, 0, linear_velocity.z)
 		apply_central_force(-vh * mass * release_brake_strength * release)
 		angular_velocity *= exp(-release_brake_strength * release * delta)
-	if dir.length() > 0.05:
+	if dir.length() > 0.05 and not rooting:
 		var vh := Vector3(linear_velocity.x, 0, linear_velocity.z)
 		var d := dir.normalized() * minf(dir.length(), 1.0)
 		# Deliberate reversal brakes rolling inertia without weakening a launched dash.
@@ -445,10 +478,13 @@ func _physics_process(delta: float) -> void:
 	if _ground_timer > 0.0:
 		_puffs = 0
 		_air_jumps = int(f.air_jumps) + (Upgrades.level("bubble") if form == BUBBLE else 0)
-	_update_jump(delta, f)
+	if not rooting:
+		_update_jump(delta, f)
+	else:
+		_jump_buffer = 0.0
 	_update_attack_state(delta)
 	_step_assist(dir, delta)
-	_unstick(delta, dir)
+	_unstick(delta)
 
 	_no_snap -= delta
 	_snap_to_ground()
@@ -471,7 +507,8 @@ func _physics_process(delta: float) -> void:
 		var target := Basis.looking_at(_move_dir, Vector3.UP)
 		if form == DRILL and _drill_down:
 			target = target * Basis(Vector3.RIGHT, -1.35)   # 往下钻：钻头转向地面
-		_visuals[form].basis = _visuals[form].basis.slerp(target, 1.0 - exp(-12.0 * delta))
+		var visual_scale := _visuals[form].scale
+		_visuals[form].basis = _visuals[form].basis.orthonormalized().slerp(target, 1.0 - exp(-12.0 * delta)).scaled(visual_scale)
 
 ## 贴地：刚离开地面（坡顶、小台阶）时，如果正下方很近处还有地面，就压回去，
 ## 避免高速过坡顶时整个飞出去。真正的断崖（下方没有地面）不受影响。
@@ -548,6 +585,10 @@ func _update_attack_state(delta: float) -> void:
 		_visual_root.visible = fmod(_invuln, 0.16) > 0.08
 	elif not _visual_root.visible and _hidden_by == "":
 		_visual_root.visible = true
+	if ecology_mode:
+		attack = ""
+		ram_power = 0.0
+		return
 	match form:
 		BALL:
 			var hs := Vector3(linear_velocity.x, 0, linear_velocity.z).length()
@@ -564,6 +605,17 @@ func _update_attack_state(delta: float) -> void:
 func _update_ability(delta: float, f: Dictionary, dir: Vector3) -> void:
 	var pressed := _ability_pressed()
 	var held := _ability_held()
+	if ecology_mode:
+		rooting = form == DRILL and held and grounded
+		if form == DRILL:
+			_pounding = false
+			_drilling_t = 0.0
+			if rooting:
+				linear_velocity.x *= exp(-14.0 * delta)
+				linear_velocity.z *= exp(-14.0 * delta)
+			return
+		if form == BUBBLE:
+			return
 	match form:
 		BALL:
 			if pressed and _ability_cd <= 0.0 and not _charging:
@@ -838,7 +890,9 @@ func _drill(dir: Vector3) -> void:
 	else:
 		# 往前钻出一条不规则的隧道：比主角宽一圈，洞壁参差不齐
 		var d := _move_dir.normalized()
-		n = world.break_sphere(global_position + d * 0.6 + Vector3.UP * 0.08, 0.64 + 0.1 * Upgrades.level("drill"), "drill", 1.0, d)
+		# Keep the supporting floor: a ragged trench can wedge the heavy form at the entrance.
+		var floor_y := global_position.y - float(FORMS[form].radius) * BODY + 0.02
+		n = world.break_sphere(global_position + d * 0.6 + Vector3.UP * 0.08, 0.64 + 0.1 * Upgrades.level("drill"), "drill", 1.0, d, false, floor_y)
 	if n > 0:
 		GameState.shake.emit(0.05)
 		Sfx.play("drill", global_position, -6.0, 0.1)
@@ -846,6 +900,8 @@ func _drill(dir: Vector3) -> void:
 func _handle_impacts() -> void:
 	var list := _impacts.duplicate()
 	_impacts.clear()
+	if ecology_mode:
+		return
 	if world == null:
 		return
 	for imp in list:
@@ -946,7 +1002,7 @@ func toggle_grab() -> void:
 		return
 	# 牵引光束：4.5 米内最近的物件会被“吸”过来，不用精确贴上去
 	var best: Node3D = null
-	var best_d := GRAB_RANGE + 1.7
+	var best_d := GRAB_RANGE
 	for n in get_tree().get_nodes_in_group("usable_item"):
 		var d := (n as Node3D).global_position.distance_to(global_position)
 		if d < best_d:
@@ -1230,7 +1286,7 @@ func _build_face() -> void:
 			set_mood("hurt", 1.2))
 
 func _set_eye_color(c: Color) -> void:
-	_eye_mat.albedo_color = c.lightened(0.45)
+	_eye_mat.albedo_color = Color("35463a") if ecology_mode else c.lightened(0.45)
 
 ## 心情："happy" 眯眼笑 / "hurt" 眼睛变成 > < / "" 正常
 func set_mood(m: String, secs: float) -> void:
@@ -1239,6 +1295,13 @@ func set_mood(m: String, secs: float) -> void:
 
 func _process(delta: float) -> void:
 	_update_drill_visual(delta)
+	if ecology_mode:
+		_ecology_time += delta
+		for m in _ecology_materials:
+			m.set_shader_parameter("elapsed", _ecology_time)
+			m.set_shader_parameter("motion_amount", 0.0 if bool(Settings.get_v("reduce_motion")) else 1.0)
+		var body := _visuals[DRILL]
+		body.scale.y = lerpf(body.scale.y, 0.86 if rooting else 1.0, 1.0 - exp(-7.0 * delta))
 	if _face == null:
 		return
 	# 面朝前进方向（慢慢转过去），停下时也保持最后的朝向
@@ -1258,7 +1321,7 @@ func _process(delta: float) -> void:
 	var origin := get_global_transform_interpolated().origin
 	var r: float = FORMS[form].radius / 0.48 * BODY
 	var fb := Basis.looking_at(_face_dir, Vector3.UP)
-	if form == DRILL:
+	if form == DRILL and not ecology_mode:
 		fb = fb * Basis(Vector3.RIGHT, 0.65)   # 钻头朝前，脸往上挪一点
 	_face.global_transform = Transform3D(fb.scaled(Vector3.ONE * r), origin)
 	_face.visible = _visual_root.visible
@@ -1267,7 +1330,11 @@ func _process(delta: float) -> void:
 		var local_v := fb.inverse() * linear_velocity
 		var want := Vector2(clampf(-local_v.z * 0.06, -0.6, 0.6), clampf(local_v.x * 0.06, -0.6, 0.6))
 		_antenna_sway = _antenna_sway.lerp(want, 1.0 - exp(-6.0 * delta))
-		_antenna.rotation = Vector3(-_antenna_sway.x, 0.0, -_antenna_sway.y + sin(Time.get_ticks_msec() * 0.004) * 0.05)
+		if ecology_mode:
+			_antenna.rotation = Vector3.ZERO
+			((_antenna as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter("inertia", Vector3(_antenna_sway.y * -0.20, 0, _antenna_sway.x * 0.25))
+		else:
+			_antenna.rotation = Vector3(-_antenna_sway.x, 0.0, -_antenna_sway.y + sin(Time.get_ticks_msec() * 0.004) * 0.05)
 	# 眨眼
 	_blink_t -= delta
 	var open := 1.0

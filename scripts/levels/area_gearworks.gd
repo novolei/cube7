@@ -563,8 +563,8 @@ func _dress() -> void:
 func _v(c: Vector3i) -> Vector3:
 	return world.voxel_top(c + Vector3i.DOWN)
 
-func _objective(i: int, text: String, cell: Vector3i, a: Vector3i, b: Vector3i) -> void:
-	zone(ObjectiveZone, a, b, {"index": i, "text": text, "marker": _v(cell)})
+func _objective(i: int, text: String, cell: Variant, a: Vector3i, b: Vector3i) -> void:
+	zone(ObjectiveZone, a, b, {"index": i, "text": text, "marker": Vector3.INF if cell == null else _v(cell)})
 
 func _fragment(id: String, cell: Vector3i, text: String) -> void:
 	var f := zone(MemoryFragment, cell, cell + Vector3i(0, 1, 0), {"log_text": text})
@@ -704,38 +704,49 @@ func _logic() -> void:
 		"第二座重构塔在工坊最东边。先往东走。",
 	])
 	talk(Vector3i(21, G, 70), Vector3i(29, G + 4, 84), [
-		"枯荆棘把路堵死了。撞不开，钻头也会被缠住……但它很干，一点就着。",
-		"旁边那个炭火盆里有火种。用{grab}抓起来，走近一点，再按{grab}扔到荆棘上。火会自己蔓延开。",
+		"荆棘缠得太紧了。不过叶子都枯了，旁边的炭火还亮着……",
+	])
+	talk(Vector3i(21, G, 70), Vector3i(29, G + 4, 84), [
+		"炭火盆里的火种可以用{grab}带走。枯枝怕火，可别靠得太近。",
+	], 26.0, 1)
+	talk(Vector3i(33, G, 68), Vector3i(46, G + 4, 84), [
+		"那块旧桥面悬着，两侧的铁轨却还在。木脚手架已经朽了。",
 	])
 	talk(Vector3i(33, G, 68), Vector3i(46, G + 4, 84), [
-		"断崖对面就是厂区。那块石板本来是桥面——只靠西头那排木脚手架撑着，悬在半空。",
-		"脚手架的木板一直铺到崖边。如果脚手架没了，石板会怎么样？看看两边崖壁上的铁轨。",
-	])
+		"脚手架一直连到崖边。桥面很重，要是少了支撑，下面有什么能接住它？",
+	], 30.0, 2)
 	talk(Vector3i(60, G, 70), Vector3i(66, G + 4, 80), [
 		"石板正好落在铁轨上。不错，PIX——你开始像个工程师了。",
 	])
 	talk(Vector3i(62, G, 55), Vector3i(70, G + 4, 64), [
-		"发电机还在转！它接出去两条线：一条金属管线通往厂房大门，一条铜线埋在地上，往东边去了。",
-		"管线中间缺了一截。能导电的东西……能量晶块就可以。储料场里应该有。",
+		"发电机还在转，通往大门的管线却缺了一截。另一条铜线延伸到东边。",
+	])
+	talk(Vector3i(62, G, 55), Vector3i(70, G + 4, 64), [
+		"缺口需要能导电的东西。工人们以前把能量晶块存放在北边的储料场。",
+	], 30.0, 4)
+	talk(Vector3i(78, G, 52), Vector3i(86, G + 4, 57), [
+		"电网还通着电，别碰。地上的铜线一路连到这里。",
 	])
 	talk(Vector3i(78, G, 52), Vector3i(86, G + 4, 57), [
-		"储料场门口通着电网，碰到会受伤。给它供电的是地上那条铜线——铜线钻得断。",
-	])
+		"那条铜线露在外面，和厂房的金属管线不同，没那么结实。",
+	], 26.0, 4)
 	talk(Vector3i(84, G, 71), Vector3i(87, G + 4, 76), [
 		"喷火口是有节奏的，看准它停下来的时候冲过去。气泡的气浪也能把它吹熄一会儿。",
 	])
 	talk(Vector3i(86, WALK_Y + 1, 59), Vector3i(92, WALK_Y + 4, 63), [
-		"空中走廊通往重构塔……前面有一堵加固墙，普通冲撞撞不开。墙边那几个红色的桶——是燃料桶。",
-		"把火种扔过去，然后离远一点。",
+		"加固墙挡住了走廊。墙边是燃料桶，小心火星，爆炸时离远一点。",
 	])
+	talk(Vector3i(86, WALK_Y + 1, 59), Vector3i(92, WALK_Y + 4, 63), [
+		"燃料的力道可比冲撞大得多。这里的火种还没熄。",
+	], 30.0, 8)
 	# 目标
 	GameState.set_objective(0, "往东走，找到通往厂区的路", _v(Vector3i(27, G, 77)))
-	_objective(1, "用炭火盆里的火种烧开枯荆棘", Vector3i(24, G + 1, 72), Vector3i(20, G, 70), Vector3i(24, G + 4, 84))
-	_objective(2, "想办法让石板落下来，搭成桥", Vector3i(CHASM.x, G, 76), Vector3i(33, G, 66), Vector3i(40, G + 4, 86))
-	_objective(3, "给厂房大门供电（看看发电机）", SOURCE + Vector3i(0, 1, 0), Vector3i(60, G, 68), Vector3i(66, G + 4, 82))
-	_objective(4, "去储料场找一块能量晶块", Vector3i(92, G, 46), Vector3i(62, G, 54), Vector3i(70, G + 4, 64))
+	_objective(1, "穿过工坊前的荆棘路", null, Vector3i(20, G, 70), Vector3i(24, G + 4, 84))
+	_objective(2, "找到越过断崖的办法", null, Vector3i(33, G, 66), Vector3i(40, G + 4, 86))
+	_objective(3, "让厂房大门恢复供电", SOURCE + Vector3i(0, 1, 0), Vector3i(60, G, 68), Vector3i(66, G + 4, 82))
+	_objective(4, "寻找能接通管线的材料", null, Vector3i(62, G, 54), Vector3i(70, G + 4, 64))
 	_objective(6, "拿到厂房中央的能量核心", CORE + Vector3i(0, 1, 0), Vector3i(71, G, 59), Vector3i(82, G + 4, 75))
-	_objective(8, "炸开走廊尽头的加固墙", Vector3i(BLAST_X - 1, WALK_Y + 1, 60), Vector3i(86, WALK_Y + 1, 58), Vector3i(92, WALK_Y + 4, 63))
+	_objective(8, "打通走廊，前往重构塔", null, Vector3i(86, WALK_Y + 1, 58), Vector3i(92, WALK_Y + 4, 63))
 	_objective(9, "击败守着重构塔的熔炉守卫", ARENA + Vector3i(0, 1, 0), Vector3i(98, WALK_Y + 1, 58), Vector3i(103, WALK_Y + 4, 63))
 	# 能量核心：气泡形态
 	form_core = zone(FormCore, CORE + Vector3i(-1, 0, -1), CORE + Vector3i(1, 2, 1), {
@@ -744,7 +755,7 @@ func _logic() -> void:
 	})
 	GameState.form_unlocked.connect(func(i: int) -> void:
 		if i == MorphBall.BUBBLE:
-			GameState.set_objective(7, "穿过东边的喷火走廊，乘上升气流到空中走廊", _v(Vector3i(86, G, 64))))
+			GameState.set_objective(7, "前往东边的空中走廊", _v(Vector3i(86, G, 64))))
 	# 插槽：补上大门的供电管线
 	socket = ItemSocket.new()
 	add_child(socket)
@@ -820,7 +831,7 @@ func _await_slab(tries: int) -> void:
 		_patch_gap()
 		SaveGame.set_flag("gw_slab")
 		GameState.say("石板正好落在铁轨上。不错，PIX——你开始像个工程师了。")
-		GameState.set_objective(3, "给厂房大门供电（看看发电机）", _v(SOURCE + Vector3i(0, 1, 0))))
+		GameState.set_objective(3, "让厂房大门恢复供电", _v(SOURCE + Vector3i(0, 1, 0))))
 
 func _on_exploded(pos: Vector3) -> void:
 	if wall_blown:

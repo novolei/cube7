@@ -107,7 +107,7 @@ func _run() -> void:
 	await _wait(1.2)
 	await _save("u06_hud_title")
 	await _wait(4.0)
-	GameState.nova_say.emit("先离开这个坑。温室和中枢塔都在东边……")
+	GameState.say("先离开这个坑。温室和中枢塔都在东边……")
 	await _wait(2.0)
 	await _save("u07_hud_nova")
 	var hud := get_tree().current_scene.get_node("Hud")

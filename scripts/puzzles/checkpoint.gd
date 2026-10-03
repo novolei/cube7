@@ -31,8 +31,10 @@ func _build() -> void:
 	_flag.scale.y = s * 0.55
 
 func _on_player_entered() -> void:
-	GameState.set_checkpoint(global_position + Vector3.UP * 0.2, lock_form, locks)
-	SaveGame.save_checkpoint(global_position + Vector3.UP * 0.2, lock_form)
+	# The trigger is tall enough to catch jumps; the respawn belongs at its floor.
+	var landing := global_position + Vector3.UP * (0.5 - box_size.y * 0.5)
+	GameState.set_checkpoint(landing, lock_form, locks)
+	SaveGame.save_checkpoint(landing, lock_form)
 	if not _active:
 		_active = true
 		Sfx.play("checkpoint", global_position, -6.0, 0.0)

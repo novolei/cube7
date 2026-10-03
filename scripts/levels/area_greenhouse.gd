@@ -866,8 +866,8 @@ func _tower_on() -> void:
 func _v(c: Vector3i) -> Vector3:
 	return world.voxel_top(c + Vector3i.DOWN)
 
-func _objective(i: int, text: String, cell: Vector3i, a: Vector3i, b: Vector3i) -> void:
-	zone(ObjectiveZone, a, b, {"index": i, "text": text, "marker": _v(cell)})
+func _objective(i: int, text: String, cell: Variant, a: Vector3i, b: Vector3i) -> void:
+	zone(ObjectiveZone, a, b, {"index": i, "text": text, "marker": Vector3.INF if cell == null else _v(cell)})
 
 func _fragment(id: String, cell: Vector3i, props: Dictionary) -> void:
 	var f := zone(MemoryFragment, cell, cell + Vector3i(0, 1, 0), props)
@@ -978,10 +978,12 @@ func _logic() -> void:
 	_enemy_near(38, 64)
 	_enemy_near(96, 36)
 	talk(Vector3i(30, G, 58), Vector3i(44, G + 4, 70), [
-		"小心，那是锈块兽——被异变侵蚀的维护机器。它正面有盾，正面撞会被弹开。",
-		"等它冲锋撞空、晕头转向的时候，或者绕到侧面、背后，再按{ability}冲撞！跳起来踩它的头也行。",
-		"还有个办法：停下来按住{ability}原地蓄力，松开就冲出去——蓄满了连盾牌都能撞碎。",
+		"小心，锈块兽的盾朝着你。它冲锋之前会停一下。",
 	])
+	talk(Vector3i(30, G, 58), Vector3i(44, G + 4, 70), [
+		"它转身很慢，冲空以后也会露出破绽。试试从侧面按{ability}冲撞。",
+		"停下来按住{ability}可以蓄力，松开再冲。力道够大，盾也挡不住。",
+	], 24.0)
 	# E 高台上空的锈蜂
 	var fly := _spawn_enemy(Rustfly.new(), Vector3i(92, G + 6, 60), 2.8)
 	talk(Vector3i(84, G + 6, 54), Vector3i(96, G + 10, 66), [
@@ -1002,16 +1004,16 @@ func _logic() -> void:
 	])
 	# 锈蚀营地
 	_camp_logic()
-	GameState.set_objective(0, "离开坠毁坑（东边有坡道）", _v(Vector3i(26, G, 74)))
+	GameState.set_objective(0, "离开坠毁坑", _v(Vector3i(26, G, 74)))
 	GameState.form_unlocked.connect(func(i: int) -> void:
 		if i == MorphBall.DRILL:
-			GameState.set_objective(5, "用钻头打通东边小桥上的泥土墙", _v(Vector3i(77, G + 7, 52))))
-	_objective(1, "前往远处的玻璃温室（跟着金币走）", Vector3i(47, G, 72), Vector3i(27, G - 1, 68), Vector3i(31, G + 4, 80))
-	_objective(2, "想办法越过深沟——看看那座砂塔", Vector3i(51, G + 2, 70), Vector3i(42, G, 62), Vector3i(51, G + 4, 80))
+			GameState.set_objective(5, "寻找温室东边的出口", _v(Vector3i(77, G + 7, 52))))
+	_objective(1, "前往远处的玻璃温室", Vector3i(47, G, 72), Vector3i(27, G - 1, 68), Vector3i(31, G + 4, 80))
+	_objective(2, "越过温室前的深沟", null, Vector3i(42, G, 62), Vector3i(51, G + 4, 80))
 	_objective(3, "登上高台，进入玻璃温室", Vector3i(64, G + 6, 49), Vector3i(62, G, 64), Vector3i(68, G + 4, 76))
 	_objective(4, "拿到温室中央的能量核心", DOME_C + Vector3i(0, 1, 0), Vector3i(55, G + 6, 27), Vector3i(73, G + 12, 45))
-	_objective(6, "找到通往重构塔的路（试试往下钻）", Vector3i(91, G + 6, 51), Vector3i(83, G + 6, 50), Vector3i(86, G + 9, 54))
-	_objective(7, "为重构塔找一块能量晶块（西边的岩丘）", Vector3i(92, G + 5, 21), Vector3i(90, G + 2, 30), Vector3i(100, G + 6, 42))
+	_objective(6, "寻找通往重构塔的路", null, Vector3i(83, G + 6, 50), Vector3i(86, G + 9, 54))
+	_objective(7, "为重构塔寻找能量晶块", null, Vector3i(90, G + 2, 30), Vector3i(100, G + 6, 42))
 	_toys()
 	# 种子方块（被封存的噗噗）：一个在显眼处教学，两个藏在需要探索的地方
 	_seed("gh_s1", 30, 80, 0)
@@ -1037,9 +1039,11 @@ func _logic() -> void:
 	# C
 	zone(Checkpoint, Vector3i(40, G, 71), Vector3i(44, G + 3, 76))
 	talk(Vector3i(42, G, 62), Vector3i(51, G + 4, 80), [
-		"这道沟太宽，冲过去、跳过去都不行——沟上还横着一根旧水管。……看那座砂塔，一半悬在沟上，全靠底下的木架撑着。",
-		"路边那根橙色的支撑桩连着整片木架。撞断它会发生什么呢？",
+		"旧水管挡在沟上。那座砂塔却悬在沟边，底下的木架已经歪了……",
 	])
+	talk(Vector3i(42, G, 62), Vector3i(51, G + 4, 80), [
+		"路边那根橙色支撑和木架连在一起。砂子很重，它还撑得住吗？",
+	], 24.0, 2)
 	coin_line(Vector3i(45, G, 70), Vector3i(45, G, 72), 2)
 	zone(Checkpoint, Vector3i(63, G, 71), Vector3i(67, G + 3, 75))
 	talk(Vector3i(62, G, 66), Vector3i(68, G + 4, 76), [
@@ -1057,20 +1061,25 @@ func _logic() -> void:
 	})
 	_fragment("gh_2", DOME_C + Vector3i(5, 0, 5), {"log_text": "艾拉·林，研究日志 #231：日冕潮的预测值又上调了。议会还在讨论撤离预算。我已经没有时间等他们了。"})
 	talk(Vector3i(68, G + 6, 50), Vector3i(75, G + 10, 54), [
-		"通往东边的小桥被泥土堵死了。现在你有钻头了——挖过去！",
+		"东边小桥上的泥墙很松，和温室的玻璃不一样。",
 	])
 	# E
 	zone(Checkpoint, Vector3i(83, G + 6, 51), Vector3i(86, G + 9, 53))
 	talk(Vector3i(87, G + 6, 48), Vector3i(96, G + 10, 56), [
-		"这片深色的松土……下面好像是空的。停下来按住{ability}往下钻试试。普通地面是钻不下去的，只有松土可以。",
+		"这片深色松土的裂缝里有风……下面好像是空的。",
 	])
+	talk(Vector3i(87, G + 6, 48), Vector3i(96, G + 10, 56), [
+		"普通地面钻不下去，松土却可以。停下来按住{ability}，钻头就朝下了。",
+	], 24.0, 6)
 	_fragment("gh_3", Vector3i(89, G + 2, 53), {"log_text": "艾拉·林，最后一条：引擎已经启动。对不起，没来得及问你们愿不愿意。等你们醒来的时候，我会在这里。"})
 	# F
 	zone(Checkpoint, Vector3i(92, G + 2, 36), Vector3i(97, G + 5, 40))
 	talk(Vector3i(90, G + 2, 30), Vector3i(100, G + 6, 42), [
-		"这就是第一座重构塔——断电了。塔基前那个发光的凹槽需要一块能量晶块。",
-		"西边那座岩丘里有紫色的晶洞——钻开它，用{grab}抓起晶块，再按{grab}扔进凹槽。",
+		"第一座重构塔。塔基的凹槽还留着一点紫光……它缺一块能量晶块。",
 	])
+	talk(Vector3i(90, G + 2, 30), Vector3i(100, G + 6, 42), [
+		"西边岩丘里也透着紫光。找找看，晶块可能还藏在岩层里。",
+	], 30.0, 7)
 	socket = ItemSocket.new()
 	add_child(socket)
 	socket.setup(world, SOCKET)
@@ -1228,7 +1237,7 @@ func _on_item_dropped(item_id: String, pos: Vector3) -> void:
 		crystal.global_position = pos + Vector3.UP * 0.3
 		crystal.home = crystal.global_position
 		crystal.linear_velocity = Vector3(randf_range(-1, 1), 3.0, randf_range(-1, 1))
-		GameState.say("能量晶块！它有发光描边——有用的东西会留在场上。按{grab}抓起来。")
+		GameState.say("能量晶块！按{grab}抓起，再按{grab}朝镜头前方扔出。塔前的凹槽会接住它。")
 		GameState.set_objective(8, "把晶块扔进重构塔前的发光凹槽", _v(SOCKET + Vector3i.UP))
 
 ## 光桥：一格一格亮起来

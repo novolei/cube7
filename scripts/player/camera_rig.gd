@@ -34,6 +34,8 @@ var _probe_shape := SphereShape3D.new()
 var _lift_check := 0.0
 var _lead := Vector3.ZERO
 var _shake_time := 0.0
+var _recenter_active := false
+var _recenter_yaw := 0.0
 
 const LIFT_CANDIDATES := [0.0, 0.3, 0.55, 0.8]
 
@@ -57,12 +59,22 @@ func _ready() -> void:
 	_probe_query.collision_mask = 1
 	_probe_query.exclude = _exclude
 	GameState.camera = self
+	if not InputMap.has_action("view_recenter"):
+		InputMap.add_action("view_recenter")
+		var mouse := InputEventMouseButton.new()
+		mouse.button_index = MOUSE_BUTTON_MIDDLE
+		InputMap.action_add_event("view_recenter", mouse)
+		var stick := InputEventJoypadButton.new()
+		stick.button_index = JOY_BUTTON_RIGHT_STICK
+		InputMap.action_add_event("view_recenter", stick)
 
 	GameState.shake.connect(func(a: float) -> void:
 		if bool(Settings.get_v("shake")) and not bool(Settings.get_v("reduce_motion")):
 			_shake = maxf(_shake, a))
 
 func _exit_tree() -> void:
+	if GameState.camera == self:
+		GameState.camera = null
 	RenderingServer.global_shader_parameter_set(&"occl_target", Vector4.ZERO)
 
 ## 设置里的镜头灵敏度（0.25~2 倍）与上下反转
@@ -84,18 +96,30 @@ func reset_follow(position: Vector3) -> void:
 	_lift_target = 0.0
 	_lift_check = 0.0
 	_hide_timer = 0.0
+	_recenter_active = false
 	_cur_pitch = clampf(-0.95 if model_view else pitch, -1.4, 0.35)
 	_cur_dist = model_distance if model_view else distance * float(Settings.get_v("cam_dist"))
 	_shake = 0.0
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("view_recenter"):
+		if _target is MorphBall:
+			var facing: Vector3 = (_target as MorphBall)._move_dir
+			_recenter_yaw = atan2(-facing.x, -facing.z)
+			_recenter_active = true
+			model_view = false
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		_recenter_active = false
 		var k := mouse_sensitivity * _sens()
 		yaw -= event.screen_relative.x * k
 		pitch -= event.screen_relative.y * k * _inv()
-	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not get_tree().paused:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	elif event is InputEventMouseButton and event.pressed and not get_tree().paused:
+		if event.ctrl_pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			distance = clampf(distance + (-0.8 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 0.8), 6.0, 12.0)
+		elif Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if event.is_action_pressed("view_toggle"):
+		_recenter_active = false
 		model_view = not model_view
 
 ## 从 pivot 沿方向扫掠球体，返回可用距离
@@ -112,6 +136,14 @@ func _dir_for(p: float) -> Vector3:
 
 func _process(delta: float) -> void:
 	var s := Input.get_vector("cam_left", "cam_right", "cam_up", "cam_down")
+	if s.length_squared() > 0.0001:
+		_recenter_active = false
+	if _recenter_active:
+		var blend := 1.0 if bool(Settings.get_v("reduce_motion")) else 1.0 - exp(-9.0 * delta)
+		yaw = lerp_angle(yaw, _recenter_yaw, blend)
+		pitch = lerpf(pitch, -0.5, blend)
+		if absf(angle_difference(yaw, _recenter_yaw)) < 0.002 and absf(pitch + 0.5) < 0.002:
+			_recenter_active = false
 	s *= s.length() # Fine aiming near the stick centre, full speed at the rim.
 	yaw -= s.x * stick_speed.x * delta * _sens()
 	pitch = clampf(pitch - s.y * stick_speed.y * delta * _sens() * _inv(), -1.3, 0.35)
@@ -123,7 +155,9 @@ func _process(delta: float) -> void:
 		if _target is RigidBody3D and not model_view and not bool(Settings.get_v("reduce_motion")):
 			var velocity := (_target as RigidBody3D).linear_velocity
 			lead_target = (Vector3(velocity.x, 0, velocity.z) * look_ahead).limit_length(0.8)
-		_lead = _lead.lerp(lead_target, 1.0 - exp(-3.5 * delta))
+		# Braking/reversing returns the composition promptly; acceleration opens it gently.
+		var lead_rate := 9.0 if lead_target.length_squared() < _lead.length_squared() or lead_target.dot(_lead) < 0.0 else 3.5
+		_lead = _lead.lerp(lead_target, 1.0 - exp(-lead_rate * delta))
 		_pivot.x = lerpf(_pivot.x, at.x + _lead.x, 1.0 - exp(-14.0 * delta))
 		_pivot.z = lerpf(_pivot.z, at.z + _lead.z, 1.0 - exp(-14.0 * delta))
 		_pivot.y = lerpf(_pivot.y, at.y, 1.0 - exp(-8.0 * delta))

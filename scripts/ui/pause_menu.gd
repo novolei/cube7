@@ -46,7 +46,8 @@ func _ready() -> void:
 		_panel.visible = false
 		_settings.open())
 	_btn("保存并返回标题", func() -> void:
-		SaveGame.write()
+		if Flow.mode != "debug":
+			SaveGame.write()
 		close()
 		Music.stop()
 		Flow.goto_title())
@@ -140,7 +141,7 @@ func _show_controls() -> void:
 		_controls.queue_free()
 	_controls = PanelContainer.new()
 	_controls.add_theme_stylebox_override("panel", UIKit.paper(30))
-	UIKit.place(_controls, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-330, -300, 330, 300))
+	UIKit.place(_controls, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-330, -350, 330, 350))
 	_root.add_child(_controls)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 12)
@@ -148,7 +149,9 @@ func _show_controls() -> void:
 	v.add_child(UIKit.display_label("操作说明", 34))
 	var dev: String = {"ps": "PS5 手柄", "xbox": "Xbox 手柄", "kbm": "键盘鼠标"}[GameState.device]
 	v.add_child(UIKit.label("当前设备：" + dev + "（会随你使用的设备自动切换）", 18, UIKit.DIM))
-	for pair in [["move", "移动"], ["camera", "转动镜头"], ["jump", "跳跃（三种形态跳法不同）"], ["ability", "形态能力 / 攻击"], ["boost", "加速"], ["grab", "抓取 / 投掷"],
+	var ecology := GameState.player is MorphBall and (GameState.player as MorphBall).ecology_mode
+	for pair in [["move", "移动"], ["camera", "转动镜头" + (" · Ctrl+滚轮调远近" if GameState.device == "kbm" else "")], ["view_recenter", "镜头归位"],
+			["jump", "轻跃 / 伞息中按住滑翔" if ecology else "跳跃（三种形态跳法不同）"], ["ability", "蓄势滚动 / 根息中按住共鸣" if ecology else "形态能力 / 攻击"], ["boost", "加速"], ["grab", "唤醒 / 汇入菌床" if ecology else "抓取 / 投掷"],
 			["form", "切换形态"], ["form_direct", "直接选择形态"], ["view_toggle", "俯视全景"], ["respawn", "回到检查点"]]:
 		v.add_child(UIKit.prompt(pair[0], pair[1], 22))
 	v.add_child(UIKit.label("按确认或返回键关闭", 16, UIKit.DIM))

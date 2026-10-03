@@ -1,0 +1,70 @@
+{
+	"device": "NVIDIA GeForce RTX 5090",
+	"fps_cap": 0,
+	"phases": [
+		{
+			"draw_calls_p95": 331.0,
+			"frames": 343,
+			"gpu_p95_ms": 0.351000010967255,
+			"max_ms": 2.514,
+			"mean_ms": 0.924195335276967,
+			"over_10ms_frames": 0,
+			"p95_ms": 1.457,
+			"phase": "dormant"
+		},
+		{
+			"draw_calls_p95": 329.0,
+			"frames": 15585,
+			"gpu_p95_ms": 0.349999994039536,
+			"max_ms": 4.22,
+			"mean_ms": 0.887497144690409,
+			"over_10ms_frames": 0,
+			"p95_ms": 1.432,
+			"phase": "companions"
+		},
+		{
+			"draw_calls_p95": 322.0,
+			"frames": 6097,
+			"gpu_p95_ms": 0.347000002861023,
+			"max_ms": 7.248,
+			"mean_ms": 1.09195112350336,
+			"over_10ms_frames": 0,
+			"p95_ms": 1.904,
+			"phase": "first_growth"
+		},
+		{
+			"draw_calls_p95": 323.0,
+			"frames": 6455,
+			"gpu_p95_ms": 0.34799998998642,
+			"max_ms": 5.951,
+			"mean_ms": 0.934899147947328,
+			"over_10ms_frames": 0,
+			"p95_ms": 1.484,
+			"phase": "root_growth"
+		},
+		{
+			"draw_calls_p95": 332.0,
+			"frames": 17865,
+			"gpu_p95_ms": 0.354000002145767,
+			"max_ms": 21.661,
+			"mean_ms": 1.04855074167366,
+			"over_10ms_frames": 7,
+			"p95_ms": 1.667,
+			"phase": "wind_and_growth"
+		},
+		{
+			"draw_calls_p95": 165.0,
+			"frames": 17325,
+			"gpu_p95_ms": 0.324000000953674,
+			"max_ms": 20.566,
+			"mean_ms": 0.896659682539689,
+			"over_10ms_frames": 2,
+			"p95_ms": 1.427,
+			"phase": "far_island_growth"
+		}
+	],
+	"renderer": "forward_plus",
+	"resolution": "(1600.0, 900.0)",
+	"save_isolated": true,
+	"vsync": "disabled"
+}
